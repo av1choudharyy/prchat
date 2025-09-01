@@ -28,7 +28,7 @@ jobs:
           
       - name: Start Application
         run: |
-          docker-compose up -d --build
+          docker compose up -d --build
           
           # Wait for services to be ready
           echo "Waiting for services to start..."
@@ -50,7 +50,7 @@ jobs:
             sleep 2
           done
           
-          docker-compose ps
+          docker compose ps
           
       - name: Setup Cloudflare Tunnel
         id: tunnel
@@ -158,12 +158,12 @@ jobs:
             # Check if services are still running
             if ! curl -f http://localhost:3000 2>/dev/null; then
               echo "Frontend stopped, restarting..."
-              docker-compose restart frontend
+              docker compose restart frontend
             fi
             
             if ! curl -f http://localhost:5000 2>/dev/null; then
               echo "Backend stopped, restarting..."
-              docker-compose restart backend
+              docker compose restart backend
             fi
             
             echo "Preview active - $i minutes elapsed"
