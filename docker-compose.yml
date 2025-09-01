@@ -52,6 +52,7 @@ services:
     environment:
       - WDS_SOCKET_PORT=3000
       - WATCHPACK_POLLING=true
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
     depends_on:
       - backend
     networks:
