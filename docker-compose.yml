@@ -1,0 +1,71 @@
+# PRChat Development Environment with Hot Reload
+# All services run with auto-restart and code syncing
+
+services:
+  mongodb:
+    image: mongo:6-jammy
+    container_name: prchat-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: prchat
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - prchat-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: prchat-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://prchat_user:prchat_pass@mongodb:27017/prchat?authSource=prchat
+      JWT_SECRET: development-secret-key
+      JWT_EXPIRE: 2d
+      NODE_ENV: development
+    depends_on:
+      - mongodb
+    networks:
+      - prchat-network
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: prchat-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - WDS_SOCKET_PORT=3000
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - backend
+    networks:
+      - prchat-network
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+
+networks:
+  prchat-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
