@@ -133,7 +133,6 @@ jobs:
             | test1@example.com | password123 |
             | test2@example.com | password123 |
             | test3@example.com | password123 |
-            | guest@example.com | 123456 |
             
             ### ⚠️ Important Notes:
             - Preview will remain active for 5 minutes
