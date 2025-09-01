@@ -19,5 +19,8 @@ RUN sed -i 's/"proxy": "http:\/\/localhost:5000"/"proxy": "http:\/\/backend:5000
 # Expose port
 EXPOSE 3000
 
+# Set environment variable to disable host check for tunneling
+ENV DANGEROUSLY_DISABLE_HOST_CHECK=true
+
 # Start the development server
 CMD ["npm", "start"]

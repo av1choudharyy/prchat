@@ -22,7 +22,7 @@ db.createCollection('messages');
 
 // Seed test users for evaluation
 // Password "password123" hashed with bcrypt (10 rounds)
-const hashedPassword = '$2a$10$Q3WYZ.VcOcwLvKlqRkKNyOD4dDmhRs7RhvRKlqxT5FBp8lGDFKOGO';
+const hashedPassword = '$2a$10$vmh01Fb/.hPL9qYnkWCsxOORKfiD9sJ5D8f6GKt1Q3dcli2smsd9y';
 
 db.users.insertMany([
   {
@@ -51,15 +51,6 @@ db.users.insertMany([
     isAdmin: false,
     createdAt: new Date(),
     updatedAt: new Date()
-  },
-  {
-    name: 'Guest User',
-    email: 'guest@example.com',
-    password: '$2a$10$NQE3r4Klmr9zuV5yN2OTQO8Im1lOVaH0MBNVJQzBKylfgQ.PhbhVy', // password: 123456
-    pic: 'https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg',
-    isAdmin: false,
-    createdAt: new Date(),
-    updatedAt: new Date()
   }
 ]);
 
@@ -68,4 +59,3 @@ print('Test users created:');
 print('- test1@example.com / password123');
 print('- test2@example.com / password123');
 print('- test3@example.com / password123');
-print('- guest@example.com / 123456');
