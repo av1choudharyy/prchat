@@ -8,6 +8,7 @@ import {
   Spinner,
   Text,
   useToast,
+  Tooltip,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -29,10 +30,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [forwardingMessage, setForwardingMessage] = useState(null);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [availableChats, setAvailableChats] = useState([]);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [showUserSelection, setShowUserSelection] = useState(false);
   const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { user, selectedChat, setSelectedChat, notification, setNotification } =
+  const { user, selectedChat, setSelectedChat, notification, setNotification, chats } =
     ChatState();
   const toast = useToast();
 
@@ -122,39 +128,46 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const sendMessage = async (e) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+      await sendMessageContent();
+    }
+  };
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-            replyTo: replyToMessage?._id || null,
-          }),
-        });
-        const data = await response.json();
+  const sendMessageContent = async () => {
+    if (!newMessage.trim() && !replyToMessage) return;
+    
+    socket.emit("stop typing", selectedChat._id);
+    try {
+      const messageToSend = newMessage;
+      setNewMessage(""); // Clear message field before making API call
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setReplyToMessage(null);
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
-      }
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: messageToSend,
+          chatId: selectedChat._id,
+          replyTo: replyToMessage?._id || null,
+        }),
+      });
+      const data = await response.json();
+
+      socket.emit("new message", data);
+      setNewMessage("");
+      setReplyToMessage(null);
+      setMessages([...messages, data]); // Add new message with existing messages
+    } catch (error) {
+      return toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
     }
   };
 
@@ -183,6 +196,114 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  const handleForward = async (message) => {
+    setForwardingMessage(message);
+    setShowForwardModal(true);
+    setShowUserSelection(true);
+    
+    // Fetch available users for forwarding
+    try {
+      console.log("Fetching users for forwarding...");
+      const response = await fetch("/api/user", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Fetched users data:", data);
+      
+      if (Array.isArray(data)) {
+        setAvailableUsers(data);
+        console.log("Set available users:", data.length);
+      } else {
+        console.error("Invalid users data format:", data);
+        setAvailableUsers([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load users for forwarding",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+      setAvailableUsers([]);
+    }
+  };
+
+  const forwardMessage = async (targetUserId) => {
+    if (!forwardingMessage || !targetUserId) return;
+    
+    try {
+      // First, create or access a chat with the target user
+      const chatResponse = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: targetUserId,
+        }),
+      });
+      
+      if (!chatResponse.ok) {
+        throw new Error("Failed to create/access chat");
+      }
+      
+      const chatData = await chatResponse.json();
+      const targetChatId = chatData._id;
+      
+      // Now send the forwarded message
+      const messageResponse = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: forwardingMessage.content || "",
+          chatId: targetChatId,
+          attachment: forwardingMessage.attachment || null,
+        }),
+      });
+      
+      if (messageResponse.ok) {
+        toast({
+          title: "Message forwarded",
+          description: "Message has been forwarded successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+          position: "bottom-right",
+        });
+        setShowForwardModal(false);
+        setForwardingMessage(null);
+        setShowUserSelection(false);
+      } else {
+        throw new Error("Failed to send forwarded message");
+      }
+    } catch (error) {
+      console.error("Forward error:", error);
+      toast({
+        title: "Forward failed",
+        description: error.message || "Failed to forward the message",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+    }
+  };
+
   const handleFilePick = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedChat) return;
@@ -200,6 +321,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         throw new Error(up?.message || "Upload failed");
       }
 
+      console.log("Upload response:", up); // Debug log
+
       const apiBase =
         process.env.REACT_APP_API_BASE ||
         `${window.location.protocol}//${window.location.hostname}:5000`;
@@ -209,8 +332,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         url: absoluteUrl,
         name: up.name,
         size: up.size,
-        type: up.mimeType?.startsWith("image/") ? "image" : "file",
+        type: up.mimeType?.startsWith("image/") || up.name?.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i) ? "image" : "file",
       };
+
+      console.log("Created attachment:", attachment); // Debug log
 
       const response = await fetch("/api/message", {
         method: "POST",
@@ -311,6 +436,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   isTyping={isTyping}
                   onReply={(m) => setReplyToMessage(m)}
                   onCopy={(text) => navigator.clipboard.writeText(text)}
+                  onForward={handleForward}
                 />
               </div>
             )}
@@ -330,33 +456,42 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               {replyToMessage ? (
                 <Box
                   mb="2"
-                  p="2"
-                  bg="#dfe6e9"
+                  p="3"
+                  bg="#E8F4FD"
+                  borderLeft="3px solid #38B2AC"
                   borderRadius="md"
                   display="flex"
                   alignItems="center"
                   justifyContent="space-between"
                 >
-                  <Text fontSize="sm">
-                    Replying to {replyToMessage.sender?.name}: {replyToMessage.content}
-                  </Text>
+                  <Box flex="1">
+                    <Text fontSize="xs" fontWeight="600" color="#38B2AC" mb="1">
+                      Replying to {replyToMessage.sender?.name}
+                    </Text>
+                    <Text fontSize="sm" color="gray.700" noOfLines={2}>
+                      {replyToMessage.attachment?.url ? (
+                        replyToMessage.attachment.type === "image" ? (
+                          "🖼️ Image"
+                        ) : (
+                          `📎 ${replyToMessage.attachment.name || "File"}`
+                        )
+                      ) : (
+                        replyToMessage.content || "Message"
+                      )}
+                    </Text>
+                  </Box>
                   <IconButton
                     size="sm"
                     ml="2"
                     onClick={() => setReplyToMessage(null)}
                     aria-label="Cancel reply"
                     icon={<span style={{ fontWeight: 700 }}>×</span>}
+                    variant="ghost"
+                    colorScheme="blue"
                   />
                 </Box>
               ) : null}
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
-              <Box mt="2" display="flex" justifyContent="flex-end">
+              <Box position="relative">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -364,13 +499,42 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   onChange={handleFilePick}
                   disabled={uploading}
                 />
+                <Box position="absolute" left="2" top="1" zIndex="1">
+                  <Tooltip label="Share document or image" placement="top" hasArrow>
+                    <IconButton
+                      size="sm"
+                      aria-label="Attach file"
+                      icon={<AttachmentIcon />}
+                      onClick={() => fileInputRef.current?.click()}
+                      isLoading={uploading}
+                      variant="ghost"
+                      colorScheme="gray"
+                      _hover={{ bg: "rgba(0,0,0,0.1)" }}
+                    />
+                  </Tooltip>
+                </Box>
+                <Input
+                  variant="filled"
+                  bg="#E0E0E0"
+                  placeholder="Enter a message.."
+                  value={newMessage}
+                  onChange={(e) => typingHandler(e)}
+                  pl="12"
+                  pr="12"
+                />
                 <IconButton
-                  isLoading={uploading}
-                  aria-label="Attach file"
+                  position="absolute"
+                  right="2"
+                  top="1"
                   size="sm"
-                  ml="2"
-                  icon={<AttachmentIcon />}
-                  onClick={() => fileInputRef.current?.click()}
+                  colorScheme="blue"
+                  aria-label="Send message"
+                  icon={<span style={{ fontSize: "18px", fontWeight: "bold" }}>→</span>}
+                  onClick={sendMessageContent}
+                  isDisabled={!newMessage.trim() && !replyToMessage}
+                  _disabled={{ opacity: 0.5, cursor: "not-allowed" }}
+                  _hover={{ transform: "scale(1.1)" }}
+                  transition="all 0.2s"
                 />
               </Box>
             </FormControl>
@@ -386,6 +550,187 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           <Text fontSize="3xl" pb="3" fontFamily="Work sans">
             Click on a user to start chatting
           </Text>
+        </Box>
+      )}
+
+      {/* Forward Modal */}
+      {showForwardModal && forwardingMessage && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          right="0"
+          bottom="0"
+          bg="rgba(0,0,0,0.5)"
+          zIndex="1000"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Box
+            bg="white"
+            p="6"
+            borderRadius="lg"
+            maxW="400px"
+            w="90%"
+            maxH="80vh"
+            overflowY="auto"
+          >
+            <Text fontSize="lg" fontWeight="bold" mb="4">
+              Forward Message
+            </Text>
+            
+            {/* Message Preview */}
+            <Box
+              p="3"
+              bg="gray.100"
+              borderRadius="md"
+              mb="4"
+              borderLeft="3px solid #38B2AC"
+            >
+              <Text fontSize="sm" color="gray.600" mb="1">
+                {forwardingMessage.sender?.name}
+              </Text>
+              <Text fontSize="sm">
+                {forwardingMessage.attachment?.url ? (
+                  forwardingMessage.attachment.type === "image" ? (
+                    "🖼️ Image"
+                  ) : (
+                    `📎 ${forwardingMessage.attachment.name || "File"}`
+                  )
+                ) : (
+                  forwardingMessage.content || "Message"
+                )}
+              </Text>
+            </Box>
+
+            {/* Chat Selection */}
+            <Text fontSize="sm" fontWeight="semibold" mb="2">
+              Select a user to forward to:
+            </Text>
+            
+            {/* Debug Button */}
+            <Box mb="2" textAlign="center">
+              <IconButton
+                size="sm"
+                onClick={async () => {
+                  console.log("Manual fetch triggered");
+                  console.log("User token:", user.token ? "Present" : "Missing");
+                  console.log("Current user:", user);
+                  console.log("Available users:", availableUsers);
+                  console.log("Available users length:", availableUsers?.length);
+                  
+                  try {
+                    const response = await fetch("/api/user", {
+                      method: "GET",
+                      headers: {
+                        Authorization: `Bearer ${user.token}`,
+                      },
+                    });
+                    
+                    console.log("Response status:", response.status);
+                    console.log("Response headers:", response.headers);
+                    
+                    if (!response.ok) {
+                      const errorText = await response.text();
+                      console.error("Response not OK:", response.status, errorText);
+                      throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log("Manual fetch result:", data);
+                    console.log("Data type:", typeof data);
+                    console.log("Is array:", Array.isArray(data));
+                    console.log("Data length:", data?.length);
+                    
+                    setAvailableUsers(data || []);
+                  } catch (error) {
+                    console.error("Manual fetch error:", error);
+                    toast({
+                      title: "Fetch Error",
+                      description: error.message,
+                      status: "error",
+                      duration: 5000,
+                      isClosable: true,
+                      position: "bottom-right",
+                    });
+                  }
+                }}
+                aria-label="Debug fetch users"
+                icon={<span>🔄</span>}
+                variant="outline"
+                colorScheme="gray"
+              />
+              <Text fontSize="xs" color="gray.500">Debug: Refresh users</Text>
+            </Box>
+            
+            {/* Show available users */}
+            <Box maxH="200px" overflowY="auto">
+              {availableUsers && availableUsers.length > 0 ? (
+                availableUsers.map((userItem) => (
+                  <Box
+                    key={userItem._id}
+                    p="3"
+                    border="1px solid"
+                    borderColor="gray.200"
+                    borderRadius="md"
+                    mb="2"
+                    cursor="pointer"
+                    _hover={{ bg: "gray.50" }}
+                    onClick={() => forwardMessage(userItem._id)}
+                  >
+                    <Box display="flex" alignItems="center">
+                      <Box
+                        w="8"
+                        h="8"
+                        borderRadius="full"
+                        bg="gray.300"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        mr="3"
+                      >
+                        {userItem.pic ? (
+                          <img
+                            src={userItem.pic}
+                            alt={userItem.name}
+                            style={{ width: "100%", height: "100%", borderRadius: "50%" }}
+                          />
+                        ) : (
+                          <Text fontSize="sm" fontWeight="bold">
+                            {userItem.name?.charAt(0)?.toUpperCase()}
+                          </Text>
+                        )}
+                      </Box>
+                      <Box>
+                        <Text fontWeight="medium">{userItem.name}</Text>
+                        <Text fontSize="sm" color="gray.600">{userItem.email}</Text>
+                      </Box>
+                    </Box>
+                  </Box>
+                ))
+              ) : (
+                <Box p="3" textAlign="center" color="gray.500">
+                  <Text>Loading users...</Text>
+                  <Text fontSize="xs">If this persists, try refreshing the page</Text>
+                </Box>
+              )}
+            </Box>
+
+            {/* Close Button */}
+            <Box mt="4" textAlign="center">
+              <IconButton
+                onClick={() => {
+                  setShowForwardModal(false);
+                  setForwardingMessage(null);
+                }}
+                aria-label="Close forward modal"
+                icon={<span style={{ fontWeight: 700 }}>×</span>}
+                variant="ghost"
+                size="lg"
+              />
+            </Box>
+          </Box>
         </Box>
       )}
     </>

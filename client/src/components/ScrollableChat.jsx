@@ -1,5 +1,5 @@
 import { Avatar, Box, HStack, IconButton, Tooltip } from "@chakra-ui/react";
-import { CopyIcon, RepeatIcon } from "@chakra-ui/icons";
+import { CopyIcon, RepeatIcon, ArrowForwardIcon } from "@chakra-ui/icons";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -13,7 +13,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping, onReply, onCopy }) => {
+const ScrollableChat = ({ messages, isTyping, onReply, onCopy, onForward }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
@@ -32,7 +32,7 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy }) => {
         {/* If something inside the messages, render the messages */}
         {messages &&
           messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex", width: "100%" }}>
+            <div ref={scrollRef} key={message._id} style={{ display: "flex", width: "100%" }} data-message-id={message._id}>
               {(isSameSender(messages, message, index, user._id) ||
                 isLastMessage(messages, index, user._id)) && (
                 <Tooltip
@@ -62,35 +62,78 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy }) => {
               >
                 {message.replyTo ? (
                   <Box
-                    mb="1"
-                    px="2.5"
-                    py="1"
-                    bg="rgba(0,0,0,0.08)"
-                    borderLeft="3px solid rgba(0,0,0,0.2)"
+                    mb="2"
+                    px="3"
+                    py="2"
+                    bg="rgba(56, 178, 172, 0.1)"
+                    borderLeft="3px solid #38B2AC"
                     borderRadius="md"
+                    cursor="pointer"
+                    _hover={{ bg: "rgba(56, 178, 172, 0.15)" }}
+                    onClick={() => {
+                      // Scroll to the replied message if it exists in current chat
+                      const repliedMessage = messages.find(m => m._id === message.replyTo._id);
+                      if (repliedMessage) {
+                        const element = document.querySelector(`[data-message-id="${repliedMessage._id}"]`);
+                        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
+                    }}
                   >
-                    <div style={{ fontSize: "12px", fontWeight: 600 }}>
-                      {message.replyTo.sender?.name || "Replied message"}
-                    </div>
-                    <div style={{ fontSize: "12px", opacity: 0.85 }}>
-                      {message.replyTo.content}
+                    <Box display="flex" alignItems="center" mb="1">
+                      <Box
+                        w="2"
+                        h="2"
+                        bg="#38B2AC"
+                        borderRadius="full"
+                        mr="2"
+                      />
+                      <div style={{ fontSize: "11px", fontWeight: "600", color: "#38B2AC", textTransform: "uppercase" }}>
+                        Replying to {message.replyTo.sender?.name || "Unknown"}
+                      </div>
+                    </Box>
+                    <div style={{ fontSize: "12px", color: "gray.700", fontStyle: "italic" }}>
+                      {message.replyTo.attachment?.url ? (
+                        message.replyTo.attachment.type === "image" ? (
+                          "🖼️ Image"
+                        ) : (
+                          `📎 ${message.replyTo.attachment.name || "File"}`
+                        )
+                      ) : (
+                        message.replyTo.content || "Message"
+                      )}
                     </div>
                   </Box>
                 ) : null}
                 {message.attachment?.url ? (
-                  message.attachment.type === "image" ? (
-                    <a href={message.attachment.url} target="_blank" rel="noreferrer">
-                      <img
-                        src={message.attachment.url}
-                        alt={message.attachment.name || "image"}
-                        style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6 }}
-                      />
-                    </a>
-                  ) : (
-                    <a href={message.attachment.url} target="_blank" rel="noreferrer">
-                      {message.attachment.name || "Download file"}
-                    </a>
-                  )
+                  (() => {
+                    console.log("Attachment data:", message.attachment);
+                    return message.attachment.type === "image" ? (
+                      <Box mb="2">
+                        <img
+                          src={message.attachment.url}
+                          alt={message.attachment.name || "image"}
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "300px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => window.open(message.attachment.url, "_blank")}
+                        />
+                      </Box>
+                    ) : (
+                      <Box mb="2">
+                        <a
+                          href={message.attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ color: "inherit", textDecoration: "underline" }}
+                        >
+                          📎 {message.attachment.name || "Download file"}
+                        </a>
+                      </Box>
+                    );
+                  })()
                 ) : null}
                 {message.content ? <div>{message.content}</div> : null}
                 <HStack spacing="1" mt="1" justify="flex-end">
@@ -101,6 +144,15 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy }) => {
                     icon={<RepeatIcon boxSize={3.5} />}
                     onClick={() => onReply?.(message)}
                   />
+                  <Tooltip label="Forward" placement="top" hasArrow>
+                    <IconButton
+                      aria-label="Forward"
+                      size="xs"
+                      variant="ghost"
+                      icon={<ArrowForwardIcon boxSize={3.5} />}
+                      onClick={() => onForward?.(message)}
+                    />
+                  </Tooltip>
                   <IconButton
                     aria-label="Copy"
                     size="xs"
