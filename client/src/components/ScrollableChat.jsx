@@ -1,4 +1,5 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+import { Avatar, Box, HStack, IconButton, Tooltip } from "@chakra-ui/react";
+import { CopyIcon, RepeatIcon } from "@chakra-ui/icons";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -12,7 +13,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping }) => {
+const ScrollableChat = ({ messages, isTyping, onReply, onCopy }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
@@ -31,7 +32,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
         {/* If something inside the messages, render the messages */}
         {messages &&
           messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
+            <div ref={scrollRef} key={message._id} style={{ display: "flex", width: "100%" }}>
               {(isSameSender(messages, message, index, user._id) ||
                 isLastMessage(messages, index, user._id)) && (
                 <Tooltip
@@ -50,28 +51,69 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
-                style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  maxWidth: "75%",
-
-                  marginLeft: isSameSenderMargin(
-                    messages,
-                    message,
-                    index,
-                    user._id
-                  ),
-                  marginTop: isSameUser(messages, message, index, user._id)
-                    ? 3
-                    : 10,
-                }}
+              <Box
+                bg={message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"}
+                borderRadius="20px"
+                px="3.5"
+                py="1.5"
+                maxW="75%"
+                ml={isSameSenderMargin(messages, message, index, user._id)}
+                mt={isSameUser(messages, message, index, user._id) ? 3 : 10}
               >
-                {message.content}
-              </span>
+                {message.replyTo ? (
+                  <Box
+                    mb="1"
+                    px="2.5"
+                    py="1"
+                    bg="rgba(0,0,0,0.08)"
+                    borderLeft="3px solid rgba(0,0,0,0.2)"
+                    borderRadius="md"
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 600 }}>
+                      {message.replyTo.sender?.name || "Replied message"}
+                    </div>
+                    <div style={{ fontSize: "12px", opacity: 0.85 }}>
+                      {message.replyTo.content}
+                    </div>
+                  </Box>
+                ) : null}
+                {message.attachment?.url ? (
+                  message.attachment.type === "image" ? (
+                    <a href={message.attachment.url} target="_blank" rel="noreferrer">
+                      <img
+                        src={message.attachment.url}
+                        alt={message.attachment.name || "image"}
+                        style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6 }}
+                      />
+                    </a>
+                  ) : (
+                    <a href={message.attachment.url} target="_blank" rel="noreferrer">
+                      {message.attachment.name || "Download file"}
+                    </a>
+                  )
+                ) : null}
+                {message.content ? <div>{message.content}</div> : null}
+                <HStack spacing="1" mt="1" justify="flex-end">
+                  <IconButton
+                    aria-label="Reply"
+                    size="xs"
+                    variant="ghost"
+                    icon={<RepeatIcon boxSize={3.5} />}
+                    onClick={() => onReply?.(message)}
+                  />
+                  <IconButton
+                    aria-label="Copy"
+                    size="xs"
+                    variant="ghost"
+                    icon={<CopyIcon boxSize={3.5} />}
+                    onClick={() =>
+                      onCopy?.(
+                        message.attachment?.url || message.content || ""
+                      )
+                    }
+                  />
+                </HStack>
+              </Box>
             </div>
           ))}
       </div>

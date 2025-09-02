@@ -31,7 +31,14 @@ const MyChats = ({ fetchAgain }) => {
       });
       const data = await response.json();
 
-      setChats(data);
+      // Ensure chats is always an array
+      const nextChats = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
+
+      setChats(nextChats);
       onClose(); // Close the side drawer
     } catch (error) {
       return toast({
@@ -95,7 +102,7 @@ const MyChats = ({ fetchAgain }) => {
         borderRadius="lg"
         overflowY="hidden"
       >
-        {chats ? (
+        {Array.isArray(chats) ? (
           <Stack overflowY="scroll">
             {chats.map((chat) => (
               <Box
