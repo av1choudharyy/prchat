@@ -17,6 +17,8 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -37,6 +39,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [showUserSelection, setShowUserSelection] = useState(false);
   const fileInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const quillContainerRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification, chats } =
     ChatState();
@@ -100,6 +103,27 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     socket.on("stop typing", () => setIsTyping(false));
     // eslint-disable-next-line
   }, []);
+
+  useEffect(() => {
+    // Add hover titles to Quill toolbar buttons
+    const root = quillContainerRef.current;
+    if (!root) return;
+    const toolbar = root.querySelector?.('.ql-toolbar');
+    if (!toolbar) return;
+    const setTitle = (selector, title) => {
+      const el = toolbar.querySelector(selector);
+      if (el && !el.getAttribute('title')) el.setAttribute('title', title);
+    };
+    setTitle('.ql-bold', 'Bold');
+    setTitle('.ql-italic', 'Italic');
+    setTitle('.ql-underline', 'Underline');
+    setTitle('.ql-strike', 'Strikethrough');
+    setTitle('.ql-color .ql-picker-label', 'Text color');
+    setTitle('.ql-background .ql-picker-label', 'Highlight');
+    setTitle('.ql-size .ql-picker-label', 'Font size');
+    setTitle('.ql-header .ql-picker-label', 'Heading');
+    setTitle('.ql-clean', 'Clear formatting');
+  }, [selectedChat]);
 
   useEffect(() => {
     fetchMessages(); // Whenever users switches chat, call the function again
@@ -172,6 +196,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
 
   const typingHandler = (e) => {
+    // This handler is kept for compatibility but not used by ReactQuill
     setNewMessage(e.target.value);
 
     // Typing Indicator Logic
@@ -452,7 +477,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               />
             </FormControl>
 
-            <FormControl mt="1" onKeyDown={(e) => sendMessage(e)} isRequired>
+            <FormControl mt="1" isRequired>
               {replyToMessage ? (
                 <Box
                   mb="2"
@@ -513,29 +538,68 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                     />
                   </Tooltip>
                 </Box>
-                <Input
-                  variant="filled"
-                  bg="#E0E0E0"
-                  placeholder="Enter a message.."
-                  value={newMessage}
-                  onChange={(e) => typingHandler(e)}
-                  pl="12"
-                  pr="12"
-                />
-                <IconButton
-                  position="absolute"
-                  right="2"
-                  top="1"
-                  size="sm"
-                  colorScheme="blue"
-                  aria-label="Send message"
-                  icon={<span style={{ fontSize: "18px", fontWeight: "bold" }}>→</span>}
-                  onClick={sendMessageContent}
-                  isDisabled={!newMessage.trim() && !replyToMessage}
-                  _disabled={{ opacity: 0.5, cursor: "not-allowed" }}
-                  _hover={{ transform: "scale(1.1)" }}
-                  transition="all 0.2s"
-                />
+                <Box ref={quillContainerRef} pl="10" pr="12" bg="#FFFFFF" borderRadius="md" borderWidth="1px">
+                  <ReactQuill
+                    theme="snow"
+                    value={newMessage}
+                    onChange={(html) => {
+                      setNewMessage(html);
+                      // Typing indicator logic for rich editor
+                      if (!socketConnected) return;
+                      if (!typing) {
+                        setTyping(true);
+                        socket.emit("typing", selectedChat._id);
+                      }
+                      let lastTypingTime = new Date().getTime();
+                      let timerLength = 3000;
+                      setTimeout(() => {
+                        let timeNow = new Date().getTime();
+                        let timeDiff = timeNow - lastTypingTime;
+                        if (timeDiff >= timerLength && typing) {
+                          socket.emit("stop typing", selectedChat._id);
+                          setTyping(false);
+                        }
+                      }, timerLength);
+                    }}
+                    placeholder="Write a message..."
+                    modules={{
+                      toolbar: [
+                        [{ header: [false, 1, 2, 3] }],
+                        ["bold", "italic", "underline", "strike"],
+                        [{ color: [] }, { background: [] }],
+                        [{ size: ["small", false, "large", "huge"] }],
+                        ["clean"],
+                      ],
+                    }}
+                    formats={[
+                      "header",
+                      "bold",
+                      "italic",
+                      "underline",
+                      "strike",
+                      "color",
+                      "background",
+                      "size",
+                    ]}
+                    style={{ minHeight: 80 }}
+                  />
+                </Box>
+                <Tooltip label="Send" placement="top" hasArrow>
+                  <IconButton
+                    position="absolute"
+                    right="2"
+                    top="1"
+                    size="sm"
+                    colorScheme="blue"
+                    aria-label="Send message"
+                    icon={<span style={{ fontSize: "18px", fontWeight: "bold" }}>→</span>}
+                    onClick={sendMessageContent}
+                    isDisabled={(!newMessage || !newMessage.replace(/<(.|\n)*?>/g, "").trim()) && !replyToMessage}
+                    _disabled={{ opacity: 0.5, cursor: "not-allowed" }}
+                    _hover={{ transform: "scale(1.1)" }}
+                    transition="all 0.2s"
+                  />
+                </Tooltip>
               </Box>
             </FormControl>
           </Box>

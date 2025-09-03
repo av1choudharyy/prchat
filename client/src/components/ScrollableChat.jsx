@@ -2,6 +2,7 @@ import { Avatar, Box, HStack, IconButton, Tooltip } from "@chakra-ui/react";
 import { CopyIcon, RepeatIcon, ArrowForwardIcon } from "@chakra-ui/icons";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
+import DOMPurify from "dompurify";
 
 import "../App.css";
 import {
@@ -135,15 +136,40 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy, onForward }) => {
                     );
                   })()
                 ) : null}
-                {message.content ? <div>{message.content}</div> : null}
-                <HStack spacing="1" mt="1" justify="flex-end">
-                  <IconButton
-                    aria-label="Reply"
-                    size="xs"
-                    variant="ghost"
-                    icon={<RepeatIcon boxSize={3.5} />}
-                    onClick={() => onReply?.(message)}
+                {message.content ? (
+                  <div
+                    style={{ wordBreak: "break-word" }}
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(message.content, {
+                        ALLOWED_TAGS: [
+                          "b",
+                          "strong",
+                          "i",
+                          "em",
+                          "u",
+                          "s",
+                          "span",
+                          "p",
+                          "br",
+                          "h1",
+                          "h2",
+                          "h3",
+                        ],
+                        ALLOWED_ATTR: ["style", "class"],
+                      }),
+                    }}
                   />
+                ) : null}
+                <HStack spacing="1" mt="1" justify="flex-end">
+                  <Tooltip label="Reply" placement="top" hasArrow>
+                    <IconButton
+                      aria-label="Reply"
+                      size="xs"
+                      variant="ghost"
+                      icon={<RepeatIcon boxSize={3.5} />}
+                      onClick={() => onReply?.(message)}
+                    />
+                  </Tooltip>
                   <Tooltip label="Forward" placement="top" hasArrow>
                     <IconButton
                       aria-label="Forward"
@@ -153,17 +179,19 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy, onForward }) => {
                       onClick={() => onForward?.(message)}
                     />
                   </Tooltip>
-                  <IconButton
-                    aria-label="Copy"
-                    size="xs"
-                    variant="ghost"
-                    icon={<CopyIcon boxSize={3.5} />}
-                    onClick={() =>
-                      onCopy?.(
-                        message.attachment?.url || message.content || ""
-                      )
-                    }
-                  />
+                  <Tooltip label="Copy" placement="top" hasArrow>
+                    <IconButton
+                      aria-label="Copy"
+                      size="xs"
+                      variant="ghost"
+                      icon={<CopyIcon boxSize={3.5} />}
+                      onClick={() =>
+                        onCopy?.(
+                          message.attachment?.url || message.content || ""
+                        )
+                      }
+                    />
+                  </Tooltip>
                 </HStack>
               </Box>
             </div>
