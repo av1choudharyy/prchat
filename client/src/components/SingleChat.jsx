@@ -191,7 +191,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   <MessageSearch 
                     selectedChat={selectedChat} 
                     user={user} 
-                    onSearchResults={() => {}} 
                   />
                   <ProfileModal user={getSenderFull(user, selectedChat.users)} />
                 </HStack>
@@ -203,7 +202,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   <MessageSearch 
                     selectedChat={selectedChat} 
                     user={user} 
-                    onSearchResults={() => {}} 
                   />
                   <UpdateGroupChatModal
                     fetchAgain={fetchAgain}

@@ -18,7 +18,6 @@ import {
   ModalBody,
   ModalFooter,
   useToast,
-  Spinner,
   Badge,
   IconButton,
 } from "@chakra-ui/react";
@@ -46,7 +45,17 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
       });
       return;
     }
-
+   if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+  toast({
+    title: "Invalid date range",
+    description: "End date must be after start date",
+    status: "warning",
+    duration: 3000,
+    isClosable: true,
+    position: "bottom-right",
+  });
+  return;
+}
     try {
       setIsSearching(true);
       
@@ -91,14 +100,24 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
         throw new Error(data.message);
       }
     } catch (error) {
-      toast({
-        title: "Search failed",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "bottom-right",
-      });
+  let errorMessage = "Something went wrong. Please try again.";
+  
+  if (error.message.includes("Failed to fetch")) {
+    errorMessage = "Cannot connect to server. Please check your internet connection.";
+  } else if (error.message.includes("401")) {
+    errorMessage = "Session expired. Please login again.";
+  } else if (error.message.includes("404")) {
+    errorMessage = "Search feature not available. Please try again later.";
+  }
+  
+  toast({
+    title: "Search failed",
+    description: errorMessage,
+    status: "error",
+    duration: 5000,
+    isClosable: true,
+    position: "bottom-right",
+  });
     } finally {
       setIsSearching(false);
     }
