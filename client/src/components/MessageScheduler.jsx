@@ -20,6 +20,7 @@ import {
     useToast,
     VStack,
     HStack,
+    useColorMode
 } from "@chakra-ui/react";
 
 const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
@@ -32,6 +33,7 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
     const [recurringPattern, setRecurringPattern] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const toast = useToast();
+    const { colorMode } = useColorMode();
 
     // Update message when modal opens with current message
     useEffect(() => {
@@ -199,7 +201,10 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="md">
             <ModalOverlay />
-            <ModalContent>
+            <ModalContent
+                bg={colorMode === "light" ? "white" : "gray.700"}
+                color={colorMode === "light" ? "gray.700" : "white"}
+            >
                 <ModalHeader>Schedule Message</ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>
@@ -211,16 +216,16 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
                                 value={scheduledMessage}
                                 onChange={(e) => setScheduledMessage(e.target.value)}
                                 rows={3}
-                                bg="gray.50"
+                                bg={colorMode === "light" ? "gray.50" : "gray.600"}
                                 isReadOnly={!!currentMessage}
                                 _readOnly={{
-                                    bg: "gray.100",
+                                    bg: colorMode === "light" ? "gray.100" : "gray.500",
                                     cursor: "not-allowed",
-                                    color: "gray.700"
+                                    color: colorMode === "light" ? "gray.700" : "gray.200"
                                 }}
                             />
                             {currentMessage && (
-                                <Text fontSize="xs" color="gray.500" mt={1}>
+                                <Text fontSize="xs" color={colorMode === "light" ? "gray.500" : "gray.400"} mt={1}>
                                     Message pre-filled from chat input
                                 </Text>
                             )}
@@ -243,7 +248,7 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
                                     placeholder="Hour"
                                     value={scheduledHour}
                                     onChange={(e) => setScheduledHour(e.target.value)}
-                                    bg="white"
+                                    bg={colorMode === "light" ? "white" : "gray.600"}
                                     borderRadius="lg"
                                     fontSize="lg"
                                     textAlign="center"
@@ -258,7 +263,7 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
                                     placeholder="Min"
                                     value={scheduledMinute}
                                     onChange={(e) => setScheduledMinute(e.target.value)}
-                                    bg="white"
+                                    bg={colorMode === "light" ? "white" : "gray.600"}
                                     borderRadius="lg"
                                     fontSize="lg"
                                     textAlign="center"
@@ -270,7 +275,7 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
                                 <Select
                                     value={scheduledPeriod}
                                     onChange={(e) => setScheduledPeriod(e.target.value)}
-                                    bg="white"
+                                    bg={colorMode === "light" ? "white" : "gray.600"}
                                     borderRadius="lg"
                                     fontSize="lg"
                                     textAlign="center"
@@ -307,13 +312,13 @@ const MessageScheduler = ({ isOpen, onClose, onSchedule, currentMessage }) => {
                         )}
 
                         {scheduledDate && scheduledHour && scheduledMinute && (
-                            <Box p={3} bg="blue.50" borderRadius="md" w="100%">
-                                <Text fontSize="sm" color="blue.600">
+                            <Box p={3} bg={colorMode === "light" ? "blue.50" : "blue.700"} borderRadius="md" w="100%">
+                                <Text fontSize="sm" color={colorMode === "light" ? "blue.600" : "blue.300"}>
                                     <strong>Scheduled for:</strong>{" "}
                                     {scheduledDate} at {scheduledHour}:{scheduledMinute} {scheduledPeriod}
                                 </Text>
                                 {isRecurring && recurringPattern && (
-                                    <Text fontSize="sm" color="blue.600">
+                                    <Text fontSize="sm" color={colorMode === "light" ? "blue.600" : "blue.300"}>
                                         <strong>Repeats:</strong> {recurringPattern}
                                     </Text>
                                 )}

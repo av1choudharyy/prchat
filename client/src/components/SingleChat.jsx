@@ -10,6 +10,8 @@ import {
   Spinner,
   Text,
   useToast,
+  HStack,
+  useColorMode,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -37,6 +39,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
+  const { colorMode } = useColorMode();
 
   const fetchMessages = async () => {
     // If no chat is selected, don't do anything
@@ -237,27 +240,30 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             display="flex"
             justifyContent={{ base: "space-between" }}
             alignItems="center"
+            color={colorMode === "light" ? "black" : "white"}
           >
             <IconButton
               display={{ base: "flex", md: "none" }}
               icon={<ArrowBackIcon />}
               onClick={() => setSelectedChat("")}
             />
-            {!selectedChat.isGroupChat ? (
-              <>
-                {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
-              </>
-            ) : (
-              <>
-                {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
-              </>
-            )}
+            <HStack>
+              {!selectedChat.isGroupChat ? (
+                <>
+                  {getSender(user, selectedChat.users)}
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                </>
+              ) : (
+                <>
+                  {selectedChat.chatName.toUpperCase()}
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                </>
+              )}
+            </HStack>
           </Text>
 
           <Box
@@ -265,7 +271,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg={colorMode === "light" ? "#E8E8E8" : "gray.700"}
             w="100%"
             h="100%"
             borderRadius="lg"
@@ -296,11 +302,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               <InputGroup>
                 <Input
                   variant="filled"
-                  bg="#E0E0E0"
+                  bg={colorMode === "light" ? "#E0E0E0" : "#4F4F4F"}
                   placeholder="Enter a message.."
                   value={newMessage}
                   onChange={(e) => typingHandler(e)}
                   pr="120px"
+                  color={colorMode === "light" ? "black" : "white"}
                 />
                 <InputRightElement width="120px">
                   <Box display="flex" gap={1}>

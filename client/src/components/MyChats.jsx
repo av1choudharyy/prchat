@@ -6,6 +6,7 @@ import {
   Text,
   useDisclosure,
   useToast,
+  useColorMode,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 
@@ -20,6 +21,7 @@ const MyChats = ({ fetchAgain }) => {
   const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
   const toast = useToast();
   const { onClose } = useDisclosure();
+  const { colorMode } = useColorMode();
 
   const fetchChats = async () => {
     try {
@@ -58,7 +60,7 @@ const MyChats = ({ fetchAgain }) => {
       flexDir="column"
       alignItems="center"
       p={3}
-      bg="white"
+      bg={colorMode === "light" ? "white" : "gray.900"}
       w={{ base: "100%", md: "31%" }}
       borderRadius="lg"
       borderWidth="1px"
@@ -89,7 +91,7 @@ const MyChats = ({ fetchAgain }) => {
         display="flex"
         flexDir="column"
         p={3}
-        bg="#F8F8F8"
+        bg={colorMode === "light" ? "#F8F8F8" : "gray.800"}
         w="100%"
         h="100%"
         borderRadius="lg"
@@ -101,8 +103,8 @@ const MyChats = ({ fetchAgain }) => {
               <Box
                 onClick={() => setSelectedChat(chat)}
                 cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
+                bg={selectedChat === chat ? "#38B2AC" : colorMode === "light" ? "#E8E8E8" : "gray.700"}
+                color={selectedChat === chat ? "white" : colorMode === "light" ? "black" : "white"}
                 px={3}
                 py={2}
                 borderRadius="lg"

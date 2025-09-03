@@ -1,4 +1,6 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+import { Avatar } from "@chakra-ui/avatar";
+import { Tooltip } from "@chakra-ui/tooltip";
+import { useColorMode } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -14,6 +16,7 @@ import typingAnimation from "../animations/typing.json";
 
 const ScrollableChat = ({ messages, isTyping }) => {
   const { user } = ChatState();
+  const { colorMode } = useColorMode();
 
   const scrollRef = useRef();
 
@@ -34,27 +37,32 @@ const ScrollableChat = ({ messages, isTyping }) => {
             <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
               {(isSameSender(messages, message, index, user._id) ||
                 isLastMessage(messages, index, user._id)) && (
-                <Tooltip
-                  label={message.sender.name}
-                  placement="bottom-start"
-                  hasArrow
-                >
-                  <Avatar
-                    mt="7px"
-                    mr="1"
-                    size="sm"
-                    cursor="pointer"
-                    name={message.sender.name}
-                    src={message.sender.pic}
-                  />
-                </Tooltip>
-              )}
+                  <Tooltip
+                    label={message.sender.name}
+                    placement="bottom-start"
+                    hasArrow
+                  >
+                    <Avatar
+                      mt="7px"
+                      mr="1"
+                      size="sm"
+                      cursor="pointer"
+                      name={message.sender.name}
+                      src={message.sender.pic}
+                    />
+                  </Tooltip>
+                )}
 
               <span
                 style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
+                  backgroundColor: `${message.sender._id === user._id
+                    ? colorMode === "light"
+                      ? "#BEE3F8"
+                      : "#8B9467"
+                    : colorMode === "light"
+                      ? "#B9F5D0"
+                      : "#3E3E3E"
+                    }`,
                   borderRadius: "20px",
                   padding: "5px 15px",
                   maxWidth: "75%",
