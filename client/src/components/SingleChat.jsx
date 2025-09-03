@@ -101,7 +101,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   });
 
-  const sendMessage = async (e) => {
+  const sendMessage = async () => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
