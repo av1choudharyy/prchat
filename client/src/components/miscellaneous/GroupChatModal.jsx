@@ -41,7 +41,7 @@ const GroupChatModal = ({ children }) => {
     try {
       setLoading(true);
 
-      const response = await fetch(`/api/user?search=${search}`, {
+      const response = await fetch(`/api/user?search=${query}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${user.token}`,
@@ -65,9 +65,20 @@ const GroupChatModal = ({ children }) => {
   };
 
   const handleSubmit = async () => {
-    if (!groupChatName || !selectedUsers) {
+    if (!groupChatName || selectedUsers.length === 0) {
       return toast({
         title: "Please fill all the fields",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-left",
+        variant: "solid",
+      });
+    }
+
+    if (selectedUsers.length < 2) {
+      return toast({
+        title: "More than 2 users are required to form a group chat",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -90,6 +101,18 @@ const GroupChatModal = ({ children }) => {
       });
       const data = await response.json();
 
+      if (!response.ok) {
+        return toast({
+          title: "Error Occured!",
+          description: data.message || "Failed to create the chat!",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+          position: "bottom-right",
+          variant: "solid",
+        });
+      }
+
       setChats([data, ...chats]);
       onClose(); // Close the modal
 
@@ -102,6 +125,7 @@ const GroupChatModal = ({ children }) => {
         variant: "solid",
       });
     } catch (error) {
+      console.error("Group chat creation error:", error);
       return toast({
         title: "Error Occured!",
         description: "Failed to create the chat!",
