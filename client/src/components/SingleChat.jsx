@@ -5,6 +5,8 @@ import {
   FormControl,
   IconButton,
   Input,
+  InputGroup,
+  InputRightElement,
   Spinner,
   Text,
   useToast,
@@ -16,6 +18,7 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import EmojiPickerComponent from "./EmojiPicker";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -27,6 +30,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -163,6 +167,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  const handleEmojiClick = (emojiObject) => {
+    setNewMessage((prevMessage) => prevMessage + emojiObject.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const toggleEmojiPicker = () => {
+    setShowEmojiPicker(!showEmojiPicker);
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -232,13 +245,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
+              <InputGroup>
+                <Input
+                  variant="filled"
+                  bg="#E0E0E0"
+                  placeholder="Enter a message.."
+                  value={newMessage}
+                  onChange={(e) => typingHandler(e)}
+                  pr="40px"
+                />
+                <InputRightElement>
+                  <EmojiPickerComponent
+                    onEmojiClick={handleEmojiClick}
+                    isOpen={showEmojiPicker}
+                    onToggle={toggleEmojiPicker}
+                  />
+                </InputRightElement>
+              </InputGroup>
             </FormControl>
           </Box>
         </>
