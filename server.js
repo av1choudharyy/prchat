@@ -3,8 +3,9 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const { connectToMongoDB } = require("./config");
-const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
+const { userRoutes, chatRoutes, messageRoutes, scheduledMessageRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
+const MessageScheduler = require("./services/messageScheduler");
 
 const app = express(); // Use express js in our app
 app.use(express.json()); // Accept JSON data
@@ -14,6 +15,7 @@ connectToMongoDB(); // Connect to Database
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/scheduled-message", scheduledMessageRoutes);
 
 // --------------------------DEPLOYMENT------------------------------
 
@@ -46,6 +48,9 @@ const io = require("socket.io")(server, {
   },
   pingTimeout: 60 * 1000,
 });
+
+// Initialize message scheduler
+const messageScheduler = new MessageScheduler(io);
 
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");

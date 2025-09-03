@@ -19,6 +19,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 import EmojiPickerComponent from "./EmojiPicker";
+import MessageScheduler from "./MessageScheduler";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -31,6 +32,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -176,6 +178,52 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     setShowEmojiPicker(!showEmojiPicker);
   };
 
+  const handleScheduleMessage = async (scheduleData) => {
+    try {
+      console.log("Sending schedule request:", {
+        ...scheduleData,
+        chatId: selectedChat._id,
+      });
+
+      const response = await fetch("/api/scheduled-message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...scheduleData,
+          chatId: selectedChat._id,
+        }),
+      });
+
+      console.log("Response status:", response.status);
+
+      const responseData = await response.json();
+      console.log("Response data:", responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.message || "Failed to schedule message");
+      }
+
+      handleScheduleSuccess();
+      return responseData;
+    } catch (error) {
+      console.error("Schedule message error:", error);
+      throw error;
+    }
+  };
+
+  const openScheduler = () => {
+    setShowScheduler(true);
+  };
+
+  const handleScheduleSuccess = () => {
+    // Clear the message input after successful scheduling
+    setNewMessage("");
+    setShowScheduler(false);
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -252,17 +300,34 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   placeholder="Enter a message.."
                   value={newMessage}
                   onChange={(e) => typingHandler(e)}
-                  pr="40px"
+                  pr="120px"
                 />
-                <InputRightElement>
-                  <EmojiPickerComponent
-                    onEmojiClick={handleEmojiClick}
-                    isOpen={showEmojiPicker}
-                    onToggle={toggleEmojiPicker}
-                  />
+                <InputRightElement width="120px">
+                  <Box display="flex" gap={1}>
+                    <IconButton
+                      aria-label="Schedule message"
+                      icon={<span style={{ fontSize: "18px" }}>⏰</span>}
+                      size="sm"
+                      variant="ghost"
+                      onClick={openScheduler}
+                      _hover={{ bg: "gray.100" }}
+                    />
+                    <EmojiPickerComponent
+                      onEmojiClick={handleEmojiClick}
+                      isOpen={showEmojiPicker}
+                      onToggle={toggleEmojiPicker}
+                    />
+                  </Box>
                 </InputRightElement>
               </InputGroup>
             </FormControl>
+
+            <MessageScheduler
+              isOpen={showScheduler}
+              onClose={() => setShowScheduler(false)}
+              onSchedule={handleScheduleMessage}
+              currentMessage={newMessage}
+            />
           </Box>
         </>
       ) : (
