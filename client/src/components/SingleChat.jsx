@@ -3,6 +3,7 @@ import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
+  HStack,
   IconButton,
   Input,
   Spinner,
@@ -16,6 +17,7 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import MessageSearch from "./MessageSearch";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -185,16 +187,30 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             {!selectedChat.isGroupChat ? (
               <>
                 {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                <HStack>
+                  <MessageSearch 
+                    selectedChat={selectedChat} 
+                    user={user} 
+                    onSearchResults={() => {}} 
+                  />
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                </HStack>
               </>
             ) : (
               <>
                 {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
+                <HStack>
+                  <MessageSearch 
+                    selectedChat={selectedChat} 
+                    user={user} 
+                    onSearchResults={() => {}} 
+                  />
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                </HStack>
               </>
             )}
           </Text>

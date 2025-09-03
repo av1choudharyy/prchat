@@ -1,4 +1,4 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+import { Avatar, Tooltip, Text, Box } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -16,6 +16,11 @@ const ScrollableChat = ({ messages, isTyping }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   useEffect(() => {
     // Scroll to the bottom when messeges render or sender is typing
@@ -50,28 +55,40 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
-                style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  maxWidth: "75%",
-
-                  marginLeft: isSameSenderMargin(
-                    messages,
-                    message,
-                    index,
-                    user._id
-                  ),
-                  marginTop: isSameUser(messages, message, index, user._id)
-                    ? 3
-                    : 10,
-                }}
+              <Box
+                display="flex"
+                flexDirection="column"
+                maxWidth="75%"
+                marginLeft={isSameSenderMargin(
+                  messages,
+                  message,
+                  index,
+                  user._id
+                )}
+                marginTop={isSameUser(messages, message, index, user._id)
+                  ? 3
+                  : 10}
               >
-                {message.content}
-              </span>
+                <span
+                  style={{
+                    backgroundColor: `${
+                      message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
+                    }`,
+                    borderRadius: "20px",
+                    padding: "5px 15px",
+                  }}
+                >
+                  {message.content}
+                </span>
+                <Text
+                  fontSize="xs"
+                  color="gray.500"
+                  mt={1}
+                  align={message.sender._id === user._id ? "right" : "left"}
+                >
+                  {formatTime(message.createdAt)}
+                </Text>
+              </Box>
             </div>
           ))}
       </div>

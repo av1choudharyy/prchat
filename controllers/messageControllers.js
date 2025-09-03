@@ -63,4 +63,54 @@ const allMessages = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages };
+// @description     Search Messages in a chat
+// @route           GET /api/message/search/:chatId
+// @access          Protected
+const searchMessages = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { keyword, startDate, endDate } = req.query;
+
+    // Build search query
+    let searchQuery = { chat: chatId };
+
+    // Add keyword search if provided
+    if (keyword && keyword.trim() !== "") {
+      searchQuery.content = { $regex: keyword, $options: "i" };
+    }
+
+    // Add date range filter if provided
+    if (startDate || endDate) {
+      searchQuery.createdAt = {};
+      if (startDate) {
+        searchQuery.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        searchQuery.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Execute search
+    const messages = await Message.find(searchQuery)
+      .populate("sender", "name pic email")
+      .populate("chat")
+      .sort({ createdAt: -1 }); // Sort by newest first
+
+    res.status(200).json({
+      success: true,
+      results: messages,
+      count: messages.length,
+      keyword: keyword || "",
+      dateRange: { startDate, endDate }
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: "Failed to search messages",
+      error: error.message
+    });
+  }
+};
+
+module.exports = { sendMessage, allMessages, searchMessages };
