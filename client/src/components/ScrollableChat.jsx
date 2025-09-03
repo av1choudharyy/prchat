@@ -1,4 +1,4 @@
-import { Avatar, Tooltip, Text, Box } from "@chakra-ui/react";
+import { Avatar, Tooltip, Text, Box, HStack } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -11,8 +11,9 @@ import {
 } from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
+import MessageActions from "./MessageActions";
 
-const ScrollableChat = ({ messages, isTyping }) => {
+const ScrollableChat = ({ messages, isTyping, onReplyToMessage }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
@@ -68,18 +69,61 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 marginTop={isSameUser(messages, message, index, user._id)
                   ? 3
                   : 10}
+                position="relative"
+                _hover={{
+                  "& .message-actions": {
+                    opacity: 1
+                  }
+                }}
               >
-                <span
-                  style={{
-                    backgroundColor: `${
-                      message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                    }`,
-                    borderRadius: "20px",
-                    padding: "5px 15px",
-                  }}
-                >
-                  {message.content}
-                </span>
+                {/* Reply Context */}
+                {message.replyTo && (
+                  <Box
+                    bg="gray.100"
+                    p={2}
+                    borderRadius="md"
+                    borderLeft="3px solid"
+                    borderLeftColor="blue.400"
+                    mb={2}
+                    fontSize="sm"
+                  >
+                    <Text fontSize="xs" color="gray.600" fontWeight="bold">
+                      Replying to {message.replyTo.sender.name}:
+                    </Text>
+                    <Text fontSize="xs" color="gray.700" noOfLines={1}>
+                      {message.replyTo.content}
+                    </Text>
+                  </Box>
+                )}
+
+                <HStack spacing={2} align="flex-start">
+                  <span
+                    style={{
+                      backgroundColor: `${
+                        message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
+                      }`,
+                      borderRadius: "20px",
+                      padding: "5px 15px",
+                      flex: 1,
+                    }}
+                  >
+                    {message.content}
+                  </span>
+                  <Box
+                    className="message-actions"
+                    opacity={0}
+                    transition="opacity 0.2s"
+                    position="absolute"
+                    top="5px"
+                    right="5px"
+                  >
+                    <MessageActions
+                      message={message}
+                      user={user}
+                      onReply={onReplyToMessage}
+                    />
+                  </Box>
+                </HStack>
                 <Text
                   fontSize="xs"
                   color="gray.500"

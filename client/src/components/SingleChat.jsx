@@ -9,6 +9,8 @@ import {
   Spinner,
   Text,
   useToast,
+  VStack,
+  CloseButton,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -29,6 +31,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -119,12 +122,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: newMessage,
             chatId: selectedChat._id,
+            replyTo: replyingTo ? replyingTo._id : null,
           }),
         });
         const data = await response.json();
 
         socket.emit("new message", data);
         setNewMessage("");
+        setReplyingTo(null); // Clear reply state
         setMessages([...messages, data]); // Add new message with existing messages
       } catch (error) {
         return toast({
@@ -163,6 +168,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setTyping(false);
       }
     }, timerLength);
+  };
+
+  // Reply to message handler
+  const handleReplyToMessage = (message) => {
+    setReplyingTo(message);
+  };
+
+  // Cancel reply
+  const cancelReply = () => {
+    setReplyingTo(null);
   };
 
   return (
@@ -241,15 +256,43 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat 
+                  messages={messages} 
+                  isTyping={isTyping}
+                  onReplyToMessage={handleReplyToMessage}
+                />
               </div>
+            )}
+
+            {/* Reply UI */}
+            {replyingTo && (
+              <Box
+                bg="gray.100"
+                p={3}
+                borderRadius="md"
+                borderLeft="4px solid"
+                borderLeftColor="blue.500"
+                mb={2}
+              >
+                <HStack justify="space-between" align="flex-start">
+                  <VStack align="start" spacing={1} flex={1}>
+                    <Text fontSize="xs" color="gray.600" fontWeight="bold">
+                      Replying to {replyingTo.sender.name}:
+                    </Text>
+                    <Text fontSize="sm" color="gray.700" noOfLines={2}>
+                      {replyingTo.content}
+                    </Text>
+                  </VStack>
+                  <CloseButton size="sm" onClick={cancelReply} />
+                </HStack>
+              </Box>
             )}
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
                 bg="#E0E0E0"
-                placeholder="Enter a message.."
+                placeholder={replyingTo ? "Type your reply..." : "Enter a message.."}
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
               />

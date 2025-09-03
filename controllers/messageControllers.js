@@ -1,10 +1,12 @@
+
+
 const { Message, Chat } = require("../models");
 
 // @description     Create New Message
 // @route           POST /api/Message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, replyTo } = req.body;
 
   if (!content || !chatId) {
     return res.status(400).json({
@@ -20,6 +22,7 @@ const sendMessage = async (req, res) => {
       sender: req.user._id, // Logged in user id,
       content,
       chat: chatId,
+      replyTo: replyTo || null,
     });
 
     message = await (
@@ -30,6 +33,12 @@ const sendMessage = async (req, res) => {
       model: "Chat",
       populate: { path: "users", select: "name email pic", model: "User" },
     });
+
+    // If it's a reply, populate the replyTo message
+    if (message.replyTo) {
+      message = await message.populate("replyTo", "content sender");
+      message = await message.populate("replyTo.sender", "name");
+    }
 
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
@@ -51,7 +60,9 @@ const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
-      .populate("chat");
+      .populate("chat")
+      .populate("replyTo", "content sender")
+      .populate("replyTo.sender", "name");
 
     res.status(200).json(messages);
   } catch (error) {
