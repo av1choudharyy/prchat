@@ -1,7 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
-
+import { messageRoutes } from "./routes";
 const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
@@ -14,7 +14,7 @@ connectToMongoDB(); // Connect to Database
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
-
+app.use("/uploads", express.static("uploads"));
 // --------------------------DEPLOYMENT------------------------------
 
 if (process.env.NODE_ENV === "production") {
@@ -81,3 +81,5 @@ io.on("connection", (socket) => {
     socket.leave(userData._id);
   });
 });
+
+
