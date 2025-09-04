@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, SearchIcon, CopyIcon, RepeatIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
   IconButton,
   Input,
+  InputGroup,
+  InputRightElement,
   Spinner,
   Text,
   useToast,
+  Flex,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -27,6 +30,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+
+  // Search state
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Reply state
+  const [replyTo, setReplyTo] = useState(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -103,10 +113,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   const sendMessage = async (e) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
+    if (e.key === "Enter" && newMessage && !searchMode) {
       socket.emit("stop typing", selectedChat._id);
       try {
+        const payload = {
+          content: newMessage,
+          chatId: selectedChat._id,
+        };
+
+        if (replyTo) {
+          payload.replyTo = replyTo._id;
+        }
+
         setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setReplyTo(null); // Reset reply state
 
         const response = await fetch("/api/message", {
           method: "POST",
@@ -114,10 +134,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
+          body: JSON.stringify(payload),
         });
         const data = await response.json();
 
@@ -161,6 +178,37 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setTyping(false);
       }
     }, timerLength);
+  };
+
+  // Toggle search mode
+  const handleSearchClick = () => {
+    setSearchMode(!searchMode);
+    setSearchQuery("");
+  };
+
+  // Filter messages
+  const filteredMessages = searchMode
+    ? messages.filter((msg) =>
+        msg.content?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
+
+  // Copy message
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "Message copied to clipboard",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+      position: "bottom",
+    });
+  };
+
+  // Reply to message
+  const handleReply = (msg) => {
+    setReplyTo(msg);
   };
 
   return (
@@ -227,18 +275,61 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={filteredMessages}
+                  isTyping={isTyping}
+                  highlight={searchMode ? searchQuery : ""}
+                  onCopy={handleCopy}
+                  onReply={handleReply}
+                />
               </div>
             )}
 
+            {/* Reply Preview */}
+            {replyTo && (
+              <Flex
+                bg="gray.200"
+                p={2}
+                borderRadius="md"
+                mb={1}
+                justify="space-between"
+              >
+                <Text fontSize="sm" color="gray.700">
+                  Replying to: {replyTo.content}
+                </Text>
+                <IconButton
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setReplyTo(null)}
+                  aria-label="Cancel reply"
+                  icon={<ArrowBackIcon />}
+                />
+              </Flex>
+            )}
+
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
+              <InputGroup>
+                <Input
+                  variant="filled"
+                  bg="#E0E0E0"
+                  placeholder={
+                    searchMode ? "Search messages..." : "Enter a message.."
+                  }
+                  value={searchMode ? searchQuery : newMessage}
+                  onChange={(e) =>
+                    searchMode ? setSearchQuery(e.target.value) : typingHandler(e)
+                  }
+                />
+                <InputRightElement>
+                  <IconButton
+                    icon={<SearchIcon />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSearchClick}
+                    aria-label="Search messages"
+                  />
+                </InputRightElement>
+              </InputGroup>
             </FormControl>
           </Box>
         </>
