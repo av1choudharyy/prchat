@@ -154,7 +154,7 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
     
     return parts.map((part, index) => 
       regex.test(part) ? (
-        <Text as="span" key={index} bg="yellow.200" fontWeight="bold">
+        <Text as="span" key={index} bg="blue.100" color="blue.800" fontWeight="bold" px={1} borderRadius="sm">
           {part}
         </Text>
       ) : (
@@ -175,6 +175,11 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
         size="sm"
         variant="ghost"
         aria-label="Search messages"
+        colorScheme="blue"
+        _hover={{
+          bg: "blue.50",
+          color: "blue.600"
+        }}
       />
 
       <Modal isOpen={isOpen} onClose={onClose} size="lg">
@@ -188,13 +193,22 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
               {/* Search Input */}
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
-                  <SearchIcon color="gray.300" />
+                  <SearchIcon color="blue.400" />
                 </InputLeftElement>
                 <Input
                   placeholder="Search messages..."
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                  border="2px solid"
+                  borderColor="gray.300"
+                  _focus={{
+                    borderColor: "blue.500",
+                    boxShadow: "0 0 0 1px #3182ce"
+                  }}
+                  _hover={{
+                    borderColor: "blue.300"
+                  }}
                 />
                 {searchKeyword && (
                   <InputRightElement>
@@ -209,19 +223,37 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
               </InputGroup>
 
               {/* Date Range */}
-              <HStack spacing={2} w="100%">
+              <HStack spacing={3} w="100%">
                 <Input
                   type="date"
                   placeholder="Start Date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  border="2px solid"
+                  borderColor="gray.300"
+                  _focus={{
+                    borderColor: "blue.500",
+                    boxShadow: "0 0 0 1px #3182ce"
+                  }}
+                  _hover={{
+                    borderColor: "blue.300"
+                  }}
                 />
-                <Text>to</Text>
+                <Text fontWeight="medium" color="gray.600">to</Text>
                 <Input
                   type="date"
                   placeholder="End Date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  border="2px solid"
+                  borderColor="gray.300"
+                  _focus={{
+                    borderColor: "blue.500",
+                    boxShadow: "0 0 0 1px #3182ce"
+                  }}
+                  _hover={{
+                    borderColor: "blue.300"
+                  }}
                 />
               </HStack>
 
@@ -232,6 +264,15 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
                 isLoading={isSearching}
                 loadingText="Searching..."
                 w="100%"
+                size="md"
+                _hover={{
+                  bg: "blue.600",
+                  transform: "translateY(-1px)",
+                  boxShadow: "lg"
+                }}
+                _active={{
+                  transform: "translateY(0px)"
+                }}
               >
                 Search Messages
               </Button>
@@ -244,13 +285,31 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
                       {searchResults.length} result(s) found
                     </Text>
                     <HStack>
-                      <Button size="sm" onClick={() => navigateResult("prev")}>
+                      <Button 
+                        size="sm" 
+                        onClick={() => navigateResult("prev")}
+                        colorScheme="blue"
+                        variant="outline"
+                        _hover={{
+                          bg: "blue.50",
+                          borderColor: "blue.400"
+                        }}
+                      >
                         Previous
                       </Button>
-                      <Badge colorScheme="blue">
+                      <Badge colorScheme="blue" fontSize="sm" px={3} py={1}>
                         {currentResultIndex + 1} of {searchResults.length}
                       </Badge>
-                      <Button size="sm" onClick={() => navigateResult("next")}>
+                      <Button 
+                        size="sm" 
+                        onClick={() => navigateResult("next")}
+                        colorScheme="blue"
+                        variant="outline"
+                        _hover={{
+                          bg: "blue.50",
+                          borderColor: "blue.400"
+                        }}
+                      >
                         Next
                       </Button>
                     </HStack>
@@ -259,20 +318,31 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
                   <Box
                     maxH="300px"
                     overflowY="auto"
-                    border="1px solid"
+                    border="2px solid"
                     borderColor="gray.200"
-                    borderRadius="md"
-                    p={3}
+                    borderRadius="lg"
+                    p={4}
+                    bg="gray.50"
+                    boxShadow="sm"
                   >
                     {searchResults.map((message, index) => (
                       <Box
                         key={message._id}
-                        p={2}
+                        p={3}
                         bg={index === currentResultIndex ? "blue.50" : "white"}
-                        borderLeft={index === currentResultIndex ? "4px solid" : "none"}
-                        borderLeftColor="blue.500"
-                        mb={2}
+                        borderLeft={index === currentResultIndex ? "4px solid" : "2px solid"}
+                        borderLeftColor={index === currentResultIndex ? "blue.500" : "blue.200"}
+                        border="1px solid"
+                        borderColor="gray.200"
+                        mb={3}
                         borderRadius="md"
+                        _hover={{
+                          bg: index === currentResultIndex ? "blue.100" : "gray.50",
+                          borderColor: "blue.300",
+                          transform: "translateY(-1px)",
+                          boxShadow: "sm"
+                        }}
+                        transition="all 0.2s"
                       >
                         <HStack justify="space-between" mb={1}>
                           <Text fontSize="sm" fontWeight="bold">
@@ -294,10 +364,26 @@ const MessageSearch = ({ selectedChat, user, onSearchResults }) => {
           </ModalBody>
 
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={clearSearch}>
+            <Button 
+              variant="outline" 
+              mr={3} 
+              onClick={clearSearch}
+              colorScheme="gray"
+              _hover={{
+                bg: "gray.50"
+              }}
+            >
               Clear
             </Button>
-            <Button colorScheme="blue" onClick={onClose}>
+            <Button 
+              colorScheme="blue" 
+              onClick={onClose}
+              _hover={{
+                bg: "blue.600",
+                transform: "translateY(-1px)",
+                boxShadow: "lg"
+              }}
+            >
               Close
             </Button>
           </ModalFooter>

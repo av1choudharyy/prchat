@@ -267,19 +267,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             {/* Reply UI */}
             {replyingTo && (
               <Box
-                bg="gray.100"
-                p={3}
+                bg="blue.50"
+                p={4}
                 borderRadius="md"
                 borderLeft="4px solid"
                 borderLeftColor="blue.500"
+                border="1px solid"
+                borderColor="blue.200"
                 mb={2}
+                boxShadow="sm"
               >
                 <HStack justify="space-between" align="flex-start">
                   <VStack align="start" spacing={1} flex={1}>
-                    <Text fontSize="xs" color="gray.600" fontWeight="bold">
+                    <Text fontSize="sm" color="blue.700" fontWeight="bold">
                       Replying to {replyingTo.sender.name}:
                     </Text>
-                    <Text fontSize="sm" color="gray.700" noOfLines={2}>
+                    <Text fontSize="sm" color="gray.800" noOfLines={2} fontWeight="medium">
                       {replyingTo.content}
                     </Text>
                   </VStack>
@@ -291,10 +294,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
-                bg="#E0E0E0"
+                bg="white"
+                border="1px solid"
+                borderColor="gray.300"
                 placeholder={replyingTo ? "Type your reply..." : "Enter a message.."}
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
+                _focus={{
+                  borderColor: "blue.500",
+                  boxShadow: "0 0 0 1px #3182ce"
+                }}
+                _hover={{
+                  borderColor: "blue.300"
+                }}
               />
             </FormControl>
           </Box>
