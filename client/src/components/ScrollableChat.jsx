@@ -1,4 +1,5 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+import { Avatar, Tooltip, IconButton, HStack, useToast } from "@chakra-ui/react";
+import { CopyIcon, RepeatIcon } from "@chakra-ui/icons";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -12,10 +13,11 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping }) => {
+const ScrollableChat = ({ messages, isTyping, onReply }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
+  const toast = useToast();
 
   useEffect(() => {
     // Scroll to the bottom when messeges render or sender is typing
@@ -31,7 +33,11 @@ const ScrollableChat = ({ messages, isTyping }) => {
         {/* If something inside the messages, render the messages */}
         {messages &&
           messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
+            <div
+              ref={scrollRef}
+              key={message._id}
+              style={{ display: "flex", alignItems: "center" }}
+            >
               {(isSameSender(messages, message, index, user._id) ||
                 isLastMessage(messages, index, user._id)) && (
                 <Tooltip
@@ -50,28 +56,72 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
-                style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  maxWidth: "75%",
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span
+                  style={{
+                    backgroundColor: `${
+                      message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
+                    }`,
+                    borderRadius: "20px",
+                    padding: "5px 15px",
+                    maxWidth: "75%",
 
-                  marginLeft: isSameSenderMargin(
-                    messages,
-                    message,
-                    index,
-                    user._id
-                  ),
-                  marginTop: isSameUser(messages, message, index, user._id)
-                    ? 3
-                    : 10,
-                }}
-              >
-                {message.content}
-              </span>
+                    marginLeft: isSameSenderMargin(
+                      messages,
+                      message,
+                      index,
+                      user._id
+                    ),
+                    marginTop: isSameUser(messages, message, index, user._id)
+                      ? 3
+                      : 10,
+                  }}
+                >
+                  {message.content}
+                </span>
+
+                <HStack spacing="1" ml="2">
+                  <Tooltip label="Copy" hasArrow>
+                    <IconButton
+                      aria-label="Copy message"
+                      icon={<CopyIcon />}
+                      size="xs"
+                      variant="ghost"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(message.content || "");
+                          toast({
+                            title: "Copied",
+                            status: "success",
+                            duration: 1500,
+                            isClosable: true,
+                            position: "bottom-right",
+                            variant: "subtle",
+                          });
+                        } catch (e) {
+                          toast({
+                            title: "Failed to copy",
+                            status: "error",
+                            duration: 1500,
+                            isClosable: true,
+                            position: "bottom-right",
+                            variant: "subtle",
+                          });
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                  <Tooltip label="Reply" hasArrow>
+                    <IconButton
+                      aria-label="Reply to message"
+                      icon={<RepeatIcon />}
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => onReply && onReply(message)}
+                    />
+                  </Tooltip>
+                </HStack>
+              </div>
             </div>
           ))}
       </div>

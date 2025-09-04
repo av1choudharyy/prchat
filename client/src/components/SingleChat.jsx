@@ -8,6 +8,9 @@ import {
   Spinner,
   Text,
   useToast,
+  Tag,
+  TagLabel,
+  TagCloseButton,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -27,6 +30,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -115,7 +119,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            content: newMessage,
+            content:
+              replyTo && replyTo.content
+                ? `↪ ${replyTo.sender?.name || ""}: ${replyTo.content}\n${newMessage}`
+                : newMessage,
             chatId: selectedChat._id,
           }),
         });
@@ -124,6 +131,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         socket.emit("new message", data);
         setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
+        setReplyTo(null);
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -227,11 +235,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  onReply={(msg) => setReplyTo(msg)}
+                />
               </div>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
+            {replyTo ? (
+              <Tag size="md" colorScheme="blue" mb="2" maxW="full">
+                <TagLabel>
+                  Replying to {replyTo.sender?.name || ""}: {replyTo.content}
+                </TagLabel>
+                <TagCloseButton onClick={() => setReplyTo(null)} />
+              </Tag>
+            ) : null}
+
+            <FormControl mt="1" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
                 bg="#E0E0E0"
