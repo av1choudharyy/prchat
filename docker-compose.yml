@@ -25,7 +25,7 @@ services:
     container_name: prchat-backend
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
       PORT: 5000
       MONGO_URI: mongodb://prchat_user:prchat_pass@mongodb:27017/prchat?authSource=prchat
