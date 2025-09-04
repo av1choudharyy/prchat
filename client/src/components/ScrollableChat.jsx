@@ -25,6 +25,16 @@ const ScrollableChat = ({ messages, isTyping }) => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
+  // Format timestamp like WhatsApp (e.g., "2:34 PM")
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   return (
     <>
       <div
@@ -53,7 +63,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
                   </Tooltip>
                 )}
 
-              <span
+              <div
                 style={{
                   backgroundColor: `${message.sender._id === user._id
                     ? colorMode === "light"
@@ -64,9 +74,9 @@ const ScrollableChat = ({ messages, isTyping }) => {
                       : "#3E3E3E"
                     }`,
                   borderRadius: "20px",
-                  padding: "5px 15px",
+                  padding: "8px 12px",
                   maxWidth: "75%",
-
+                  position: "relative",
                   marginLeft: isSameSenderMargin(
                     messages,
                     message,
@@ -78,8 +88,24 @@ const ScrollableChat = ({ messages, isTyping }) => {
                     : 10,
                 }}
               >
-                {message.content}
-              </span>
+                <div style={{ paddingBottom: "20px", paddingRight: "50px" }}>
+                  {message.content}
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: colorMode === "light" ? "#666" : "#ccc",
+                    textAlign: "right",
+                    position: "absolute",
+                    bottom: "4px",
+                    right: "8px",
+                    opacity: 0.7,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatTimestamp(message.createdAt)}
+                </div>
+              </div>
             </div>
           ))}
       </div>
