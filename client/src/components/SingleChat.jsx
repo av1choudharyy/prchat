@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -16,6 +16,8 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import ChatSearch from "./ChatSearch";
+import QuickReplyBar from "./QuickReplyBar";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -27,9 +29,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
+  const messageRefs = useRef([]);
 
-  const { user, selectedChat, setSelectedChat, notification, setNotification } =
+  const { user, selectedChat, setSelectedChat, notification, setNotification, chats } =
     ChatState();
+
+
   const toast = useToast();
 
   const fetchMessages = async () => {
@@ -67,45 +74,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  useEffect(() => {
-    socket = io(ENDPOINT);
-    socket.emit("setup", user);
-    socket.on("connected", () => setSocketConnected(true));
-
-    socket.on("typing", () => setIsTyping(true));
-    socket.on("stop typing", () => setIsTyping(false));
-    // eslint-disable-next-line
-  }, []);
-
-  useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
-    selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
-  }, [selectedChat]);
-
-  useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
-      if (
-        !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat[0]._id
-      ) {
-        if (!notification.includes(newMessageRecieved)) {
-          setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
-        }
-      } else {
-        setMessages([...messages, newMessageRecieved]);
-      }
-    });
-
-    // eslint-disable-next-line
-  });
-
-  const sendMessage = async (e) => {
+  const sendMessage = async (e, quickText = null) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
+    if ((e.key === "Enter" && newMessage) || quickText) {
       socket.emit("stop typing", selectedChat._id);
       try {
+        const messageToSend = quickText || newMessage;
         setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
 
         const response = await fetch("/api/message", {
@@ -115,8 +89,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            content: newMessage,
+            content: messageToSend,
             chatId: selectedChat._id,
+            isAiInteraction: /@prai\b/i.test(messageToSend) ? true : false,
           }),
         });
         const data = await response.json();
@@ -163,11 +138,54 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  const scrollToMessage = (index) => {
+    if (messageRefs.current[index]) {
+      messageRefs.current[index].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  };
+
+  useEffect(() => {
+    socket = io(ENDPOINT);
+    socket.emit("setup", user);
+    socket.on("connected", () => setSocketConnected(true));
+
+    socket.on("typing", () => setIsTyping(true));
+    socket.on("stop typing", () => setIsTyping(false));
+    // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
+    fetchMessages(); // Whenever users switches chat, call the function again
+    selectedChatCompare = selectedChat;
+    // eslint-disable-next-line
+  }, [selectedChat]);
+
+  useEffect(() => {
+    socket.on("message recieved", (newMessageRecieved) => {
+      if (
+        !selectedChatCompare ||
+        selectedChatCompare._id !== newMessageRecieved.chat[0]._id
+      ) {
+        if (!notification.includes(newMessageRecieved)) {
+          setNotification([newMessageRecieved, ...notification]);
+          setFetchAgain(!fetchAgain); // Fetch all the chats again
+        }
+      } else {
+        setMessages([...messages, newMessageRecieved]);
+      }
+    });
+
+    // eslint-disable-next-line
+  });
+
   return (
     <>
       {selectedChat ? (
         <>
-          <Text
+          <Box
             fontSize={{ base: "28px", md: "30px" }}
             pb="3"
             px="2"
@@ -190,14 +208,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             ) : (
               <>
                 {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
+                <Box style={{ display: "flex" }}>
+                  <ChatSearch
+                    messages={messages}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    onScrollToMessage={scrollToMessage}
+                    setSelectedMessageIndex={setSelectedMessageIndex}
+                  />
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                </Box>
               </>
             )}
-          </Text>
+          </Box>
 
           <Box
             display="flex"
@@ -227,10 +254,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  searchQuery={searchQuery}
+                  messageRefs={messageRefs}
+                  electedMessageIndex={selectedMessageIndex}
+                  selectedChat={selectedChat}
+                  chats={chats}
+                />
               </div>
             )}
 
+            <QuickReplyBar
+              onSelect={(text) => {
+                setNewMessage(text);
+                sendMessage({}, text);
+              }}
+            />
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"

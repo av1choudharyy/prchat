@@ -7,7 +7,7 @@ const {
   addToGroup,
   removeFromGroup,
 } = require("./chatControllers");
-const { sendMessage, allMessages } = require("./messageControllers");
+const { sendMessage, allMessages, forwardMessage } = require("./messageControllers");
 
 module.exports = {
   registerUser,
@@ -23,4 +23,5 @@ module.exports = {
 
   sendMessage,
   allMessages,
+  forwardMessage
 };
