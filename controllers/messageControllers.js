@@ -58,8 +58,8 @@ const allMessages = async (req, res) => {
       .populate("sender", "name pic email")
       .populate("chat")
       .populate({
-         path: "replyTo",
-         populate: { path: "sender", select: "name pic email" }
+      path: "replyTo",
+      populate: { path: "sender", select: "name pic email" }
       });
     
       res.status(200).json(messages);
@@ -96,10 +96,9 @@ const forwardMessage = async (req, res) => {
     }
 
     let forwarded = await Message.create({
-      sender: req.user._id,          
-      content: original.content,     
+      sender: req.user._id,
+      content: original.content,
       chat: targetChatId,
-     
     });
 
     forwarded = await (await forwarded.populate("sender", "name pic")).populate({
@@ -121,5 +120,87 @@ const forwardMessage = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages, forwardMessage };
+const deleteMessage = async (req, res) => {
+  try {
+    const message = await Message.findByIdAndDelete(req.params.messageId);
+    res.json({ success: true, message: "Message deleted" });
+  } catch (error) {
+    res.status(400).json({ message: "Failed to delete message" });
+  }
+};
+
+// Make sure you have: const { Message, Chat } = require("../models");
+
+const resolveChatId = (chat) => {
+  // chat could be an object, an ObjectId, or an array
+  if (!chat) return null;
+  if (Array.isArray(chat)) return chat[0]?._id || chat[0];
+  return chat._id || chat;
+};
+
+// PIN
+const pinMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    // 1) find the message & figure out the chat id
+    let msg = await Message.findById(messageId).populate({
+      path: "chat",
+      select: "_id users",
+      model: "Chat",
+    });
+    if (!msg) return res.status(404).json({ message: "Message not found" });
+
+    const chatId = resolveChatId(msg.chat);
+    if (!chatId) return res.status(400).json({ message: "Chat not resolved" });
+
+    // 2) unpin any existing pinned message in this chat
+    await Message.updateMany({ chat: chatId, pinned: true }, { $set: { pinned: false } });
+
+    // 3) pin this message and populate for UI/sockets
+    let updated = await Message.findByIdAndUpdate(
+      messageId,
+      { pinned: true },
+      { new: true }
+    );
+
+    updated = await (await updated.populate("sender", "name pic")).populate({
+      path: "chat",
+      select: "chatName isGroupChat users",
+      model: "Chat",
+      populate: { path: "users", select: "name email pic", model: "User" },
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    return res.status(400).json({ message: "Failed to pin message" });
+  }
+};
+
+// UNPIN
+const unpinMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    let updated = await Message.findByIdAndUpdate(
+      messageId,
+      { pinned: false },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "Message not found" });
+
+    updated = await (await updated.populate("sender", "name pic")).populate({
+      path: "chat",
+      select: "chatName isGroupChat users",
+      model: "Chat",
+      populate: { path: "users", select: "name email pic", model: "User" },
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    return res.status(400).json({ message: "Failed to unpin message" });
+  }
+};
+
+module.exports = { sendMessage, allMessages,forwardMessage,pinMessage, unpinMessage, deleteMessage };
 

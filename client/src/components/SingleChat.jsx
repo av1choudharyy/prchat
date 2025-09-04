@@ -1,8 +1,10 @@
 import { FiCopy } from "react-icons/fi";        // Copy
 import { IoReturnDownBack } from "react-icons/io5"; // Reply
-import { MdClose } from "react-icons/md"; 
+import { MdClose } from "react-icons/md";
 import { FiSend } from "react-icons/fi";  // Send
 import { FiCornerUpRight } from "react-icons/fi";     // Cancel (X)
+import { FiTrash2 } from "react-icons/fi"; // Delete
+import { MdPushPin, MdOutlinePushPin } from "react-icons/md"; // Pin
 import { useEffect, useState } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
@@ -111,10 +113,28 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
       }
     });
+
 return () => {
     socket.off("message recieved");
   };
 }, [notification, setNotification, setFetchAgain]);
+
+// ✅ Listen for pin/unpin events
+useEffect(() => {
+  const onPinUpdated = ({ message }) => {
+    // message = pinned message object or null if unpinned
+    setMessages((prev) =>
+      prev.map((m) =>
+        message
+          ? { ...m, pinned: m._id === message._id } // mark only one as pinned
+          : { ...m, pinned: false }                 // unpin all
+      )
+    );
+  };
+
+  socket.on("pin updated", onPinUpdated);
+  return () => socket.off("pin updated", onPinUpdated);
+}, [setMessages]);
 
   const sendMessage = async (e) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
@@ -381,6 +401,7 @@ const handleForward = async () => {
     navigator.clipboard.writeText(selectedMessage.content);
     setSelectedMessage(null);
   }}
+  title="Copy"
 >
   <FiCopy />
 </button>
@@ -392,6 +413,7 @@ const handleForward = async () => {
     setReplyingTo(selectedMessage);
     setSelectedMessage(null);
   }}
+  title="Reply"
 >
   <IoReturnDownBack />
 </button>
@@ -404,10 +426,134 @@ const handleForward = async () => {
   <FiCornerUpRight />
 </button>
 
+{/* Delete */}
+<button
+  style={{
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    color: "red",
+  }}
+  onClick={async () => {
+    await fetch(`/api/message/${selectedMessage._id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    setMessages(messages.filter((m) => m._id !== selectedMessage._id)); // remove from UI
+    setSelectedMessage(null);
+  }}
+  title="Delete"
+>
+  <FiTrash2 />
+</button>
 
+{/* Pin / Unpin (toggle) */}
+<button
+  style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "20px" }}
+  title={selectedMessage?.pinned ? "Unpin message" : "Pin message"}
+  onClick={async () => {
+    try {
+      const isPinned = !!selectedMessage.pinned;
+      const endpoint = isPinned
+        ? `/api/message/${selectedMessage._id}/unpin`
+        : `/api/message/${selectedMessage._id}/pin`;
 
-  </div>
-)}
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      const updated = await res.json();
+
+      // Update local UI: exactly one pinned per chat
+      setMessages(prev =>
+        prev.map(m =>
+          updated.pinned
+            ? { ...m, pinned: m._id === updated._id } // only this one true
+            : { ...m, pinned: false }                  // unpin all
+        )
+      );
+
+      // Notify others in the room
+      socket.emit("pin updated", {
+        chatId: selectedChat._id,
+        message: updated.pinned ? updated : null,
+      });
+
+      setSelectedMessage(null);
+
+      toast({
+        title: updated.pinned ? "Message pinned" : "Message unpinned",
+        status: "success",
+        duration: 1500,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
+    } catch {
+      toast({
+        title: "Failed to toggle pin",
+        status: "error",
+        duration: 2000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
+    }
+  }}
+>
+  {selectedMessage?.pinned ? <MdPushPin /> : <MdOutlinePushPin />}
+</button>
+
+{/* Pinned banner (single, like WhatsApp) */}
+{(() => {
+  const pinned = messages.find((m) => m.pinned);
+  if (!pinned) return null;
+  return (
+    <div
+      style={{
+        background: "#fff3cd",
+        padding: "8px 10px",
+        borderRadius: "8px",
+        marginBottom: "8px",
+        border: "1px solid #ffeeba",
+        fontSize: "14px",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        justifyContent: "space-between",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <MdPushPin />
+        <div>
+          <div style={{ fontWeight: 600 }}>Pinned message</div>
+          <div style={{ color: "#555" }}>{pinned.content}</div>
+        </div>
+      </div>
+
+      {/* Unpin button on the banner */}
+      <button
+        title="Unpin"
+        onClick={async () => {
+          const res = await fetch(`/api/message/${pinned._id}/unpin`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${user.token}` },
+          });
+          const updated = await res.json();
+
+          setMessages(prev => prev.map(m => ({ ...m, pinned: false })));
+
+          socket.emit("pin updated", { chatId: selectedChat._id, message: null });
+        }}
+        style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "18px" }}
+      >
+        <MdOutlinePushPin />
+      </button>
+    </div>
+  );
+})()}
+</div>
+            )}
 <ScrollableChat 
                 messages={messages} 
                 isTyping={isTyping} 
