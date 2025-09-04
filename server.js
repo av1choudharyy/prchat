@@ -1,8 +1,9 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
+const Chat = require("./models/Chat"); // or wherever your Mongoose model lives
 
-const { connectToMongoDB } = require("./config");
+const { connectToMongoDB } = require("./config/index.js");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
 
@@ -64,17 +65,25 @@ io.on("connection", (socket) => {
 
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
-  socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+ socket.on("new message", async (newMessage) => {
+  try {
+    const chat = await Chat.findById(newMessage.chat)
+      .populate("users", "name email");
 
-    if (!chat.users) return console.log("chat.users not defined");
+    if (!chat || !chat.users) {
+      console.log("chat.users not defined");
+      return;
+    }
 
     chat.users.forEach((user) => {
-      if (user._id === newMessageRecieved.sender._id) return;
-
-      socket.in(user._id).emit("message recieved", newMessageRecieved);
+      if (user._id.toString() !== newMessage.sender._id.toString()) {
+        socket.to(user._id.toString()).emit("message recieved", newMessage);
+      }
     });
-  });
+  } catch (error) {
+    console.error("Socket error in 'new message':", error);
+  }
+});
 
   socket.off("setup", () => {
     console.log("User Disconnected");

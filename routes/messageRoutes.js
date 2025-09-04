@@ -12,3 +12,5 @@ router.route("/").post(protect, sendMessage);
 router.route("/:chatId").get(protect, allMessages); // Fetch all messages for a single chat
 
 module.exports = router;
+
+
