@@ -31,7 +31,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
-
+  // ✅ New state for replies
+  const [replyTo, setReplyTo] = useState(null);
   const fetchMessages = async () => {
     // If no chat is selected, don't do anything
     if (!selectedChat) {
@@ -117,6 +118,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: newMessage,
             chatId: selectedChat._id,
+            replyTo: replyTo ? replyTo._id : null,
           }),
         });
         const data = await response.json();
@@ -124,6 +126,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         socket.emit("new message", data);
         setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
+        setReplyTo(null); // ✅ clear reply after sending
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -227,10 +230,52 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat messages={messages} isTyping={isTyping} setReplyTo={setReplyTo}/>
               </div>
             )}
 
+
+            {/* ✅ Reply Preview above input */}
+            {replyTo && (
+              <Box
+                bg="gray.100"
+                p={2}
+                borderRadius="md"
+                mb={2}
+                fontSize="sm"
+                display="flex"
+                justifyContent="space-between"
+              >
+                <span>
+                  Replying to <b>{replyTo.sender?.name}</b>: {replyTo.content}
+                </span>
+                <button
+                  onClick={() => setReplyTo(null)}
+                  style={{ color: "red", fontSize: "12px", marginLeft: "10px" }}
+                >
+                  ✕
+                </button>
+              </Box>
+            )}
+
+            <Box display="flex" gap="2" mb={2}>
+            {["Okay 👍", "Thank you 🙏", "Got it ✅"].map((text, i) => (
+            <button
+            key={i}
+            onClick={() => setNewMessage(text)} // put text into input
+            style={{
+            padding: "4px 8px",
+            background: "#d9f0ff",
+            borderRadius: "12px",
+            fontSize: "12px",
+            cursor: "pointer",
+            border: "1px solid #ccc",
+        }}
+              >
+            {text}
+            </button>
+            ))}
+            </Box>
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"

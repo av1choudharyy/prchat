@@ -12,7 +12,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping }) => {
+const ScrollableChat = ({ messages, isTyping, setReplyTo  }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
@@ -70,7 +70,49 @@ const ScrollableChat = ({ messages, isTyping }) => {
                     : 10,
                 }}
               >
+              {/* ✅ Show reply preview if message is a reply */}
+            {message.replyTo && (
+              <div
+                style={{
+                fontSize: "12px",
+                color: "gray",
+                borderLeft: "2px solid #999",
+                paddingLeft: "5px",
+                marginBottom: "3px",
+      }}
+    >
+      Replying to: <b>{message.replyTo.sender?.name}</b> -{" "}
+      {message.replyTo.content}
+    </div>
+  )}
                 {message.content}
+                <div style={{ textAlign: "right", marginTop: "2px" }}>
+                <button
+                    onClick={() => setReplyTo(message)}
+                    style={{
+                    fontSize: "10px",
+                    color: "blue",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+            }}
+            >
+                    Reply
+                    </button>
+
+                    <button
+                    onClick={() => navigator.clipboard.writeText(message.content)}
+                    style={{
+                    fontSize: "10px",
+                    color: "green",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    }}
+                    >
+                    Copy
+                    </button>
+                    </div>
               </span>
             </div>
           ))}
