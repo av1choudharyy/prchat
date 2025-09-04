@@ -19,6 +19,7 @@ import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import { Popover, PopoverContent, PopoverTrigger, Portal } from "@chakra-ui/react";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -38,8 +39,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showUserSelection, setShowUserSelection] = useState(false);
   const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const [recording, setRecording] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const quillContainerRef = useRef(null);
+  const quillRef = useRef(null);
+  const quickReplies = useMemo(() => ["Okay", "Thank you", "Sounds good", "On it", "Will do", "Let's talk later"], []);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState([]);
+  const emojis = useMemo(
+    () => [
+      "😀","😃","😄","😁","😆","🥹","😂","🤣","😊","😇","🙂","😉","😌","😍","🥰","😘","😗","😙","😚","🤗",
+      "🤔","🤨","😐","😑","😶","🙄","😏","😣","😥","😮","🤐","😯","😪","😫","🥱","😴","🤤","😛","😝","😜",
+      "🤪","🫠","🤠","😎","🤓"
+    ],
+    []
+  );
 
   const { user, selectedChat, setSelectedChat, notification, setNotification, chats } =
     ChatState();
@@ -433,7 +448,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg={{ base: "#E8E8E8", _dark: "gray.700" }}
             w="100%"
             h="100%"
             borderRadius="lg"
@@ -469,7 +484,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             <FormControl mt="3">
               <Input
                 variant="outline"
-                bg="#FFFFFF"
+                bg={{ base: "white", _dark: "gray.800" }}
+                color={{ base: "gray.800", _dark: "gray.100" }}
+                borderColor={{ base: "gray.200", _dark: "gray.600" }}
+                _hover={{ borderColor: { base: "gray.300", _dark: "gray.500" } }}
+                _focus={{ borderColor: { base: "blue.400", _dark: "blue.300" } }}
+                _placeholder={{ color: { base: "gray.500", _dark: "gray.400" } }}
                 placeholder="Search in conversation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -524,7 +544,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   onChange={handleFilePick}
                   disabled={uploading}
                 />
-                <Box position="absolute" left="2" top="1" zIndex="1">
+                <Box position="absolute" left="2" top="3" zIndex="1" display="flex" gap="2">
                   <Tooltip label="Share document or image" placement="top" hasArrow>
                     <IconButton
                       size="sm"
@@ -537,13 +557,159 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                       _hover={{ bg: "rgba(0,0,0,0.1)" }}
                     />
                   </Tooltip>
+                  <Tooltip label={recording ? "Stop recording" : "Record voice message"} placement="top" hasArrow>
+                    <IconButton
+                      size="sm"
+                      aria-label="Record voice"
+                      icon={<span>{recording ? "■" : "🎤"}</span>}
+                      variant="ghost"
+                      colorScheme={recording ? "red" : "gray"}
+                      onClick={async () => {
+                        if (recording) {
+                          try {
+                            mediaRecorderRef.current?.stop();
+                          } catch {}
+                          return;
+                        }
+                        try {
+                          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                          const chunks = [];
+                          const mr = new MediaRecorder(stream);
+                          mediaRecorderRef.current = mr;
+                          mr.ondataavailable = (e) => {
+                            if (e.data && e.data.size > 0) chunks.push(e.data);
+                          };
+                          mr.onstop = async () => {
+                            setRecording(false);
+                            const blob = new Blob(chunks, { type: "audio/webm" });
+                            const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+                            const formData = new FormData();
+                            formData.append("file", file);
+                            try {
+                              setUploading(true);
+                              const res = await fetch("/api/upload/single", {
+                                method: "POST",
+                                headers: { Authorization: `Bearer ${user.token}` },
+                                body: formData,
+                              });
+                              const up = await res.json();
+                              if (!res.ok) throw new Error(up?.message || "Upload failed");
+                              const apiBase =
+                                process.env.REACT_APP_API_BASE ||
+                                `${window.location.protocol}//${window.location.hostname}:5000`;
+                              const absoluteUrl = up.url?.startsWith("http") ? up.url : `${apiBase}${up.url}`;
+                              const attachment = { url: absoluteUrl, name: up.name || file.name, size: up.size, type: "audio" };
+                              const response = await fetch("/api/message", {
+                                method: "POST",
+                                headers: { Authorization: `Bearer ${user.token}`, "Content-Type": "application/json" },
+                                body: JSON.stringify({ content: "", chatId: selectedChat._id, attachment }),
+                              });
+                              const data = await response.json();
+                              socket.emit("new message", data);
+                              setMessages((prev) => [...prev, data]);
+                            } catch (err) {
+                              toast({ title: "Voice upload failed", description: err.message || "Please try again", status: "error", duration: 4000, isClosable: true, position: "bottom-right" });
+                            } finally {
+                              setUploading(false);
+                              stream.getTracks().forEach((t) => t.stop());
+                            }
+                          };
+                          mr.start();
+                          setRecording(true);
+                        } catch (err) {
+                          toast({ title: "Microphone access denied", description: err.message || "Please allow microphone permissions", status: "error", duration: 4000, isClosable: true, position: "bottom-right" });
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                  <Popover placement="top-start">
+                    <PopoverTrigger>
+                      <IconButton size="sm" aria-label="Emoji" variant="ghost" colorScheme="gray" _hover={{ bg: "rgba(0,0,0,0.1)" }} icon={<span>😊</span>} />
+                    </PopoverTrigger>
+                    <Portal>
+                      <PopoverContent w="260px" p="2">
+                        <Box display="grid" gridTemplateColumns="repeat(8, 1fr)" gap="1">
+                          {emojis.map((e, idx) => (
+                            <Box key={idx} as="button" onClick={() => {
+                              const quill = quillRef.current?.getEditor?.();
+                              if (quill) {
+                                const range = quill.getSelection(true);
+                                if (range) {
+                                  quill.insertText(range.index, e);
+                                  quill.setSelection(range.index + e.length, 0);
+                                } else {
+                                  quill.insertText(quill.getLength() - 1, e);
+                                }
+                              } else {
+                                setNewMessage((prev) => (prev || "") + e);
+                              }
+                            }} style={{ fontSize: 18, padding: 4 }}>
+                              {e}
+                            </Box>
+                          ))}
+                        </Box>
+                      </PopoverContent>
+                    </Portal>
+                  </Popover>
                 </Box>
-                <Box ref={quillContainerRef} pl="10" pr="12" bg="#FFFFFF" borderRadius="md" borderWidth="1px">
+                <Box ref={quillContainerRef} pl="10" pr="12" bg={{ base: "#FFFFFF", _dark: "gray.800" }} borderRadius="md" borderWidth="1px" borderColor={{ base: "gray.200", _dark: "gray.600" }}>
+                  {/* Quick reply suggestions */}
+                  <Box px="2" pt="2" pb="1" mb="2" display="flex" flexWrap="wrap" gap="2">
+                    {quickReplies.map((text) => (
+                      <Box
+                        key={text}
+                        as="button"
+                        onClick={() => {
+                          const quill = quillRef.current?.getEditor?.();
+                          if (quill) {
+                            const range = quill.getSelection(true);
+                            const insert = text + " ";
+                            if (range) {
+                              quill.insertText(range.index, insert);
+                              quill.setSelection(range.index + insert.length, 0);
+                            } else {
+                              quill.insertText(quill.getLength() - 1, insert);
+                            }
+                          } else {
+                            setNewMessage((prev) => {
+                              const fallback = (prev || "").replace(/<p><br\/><\/p>$/i, "");
+                              return fallback + text + " ";
+                            });
+                          }
+                        }}
+                        px="2"
+                        py="1"
+                        bg={{ base: "#F1F5F9", _dark: "gray.700" }}
+                        borderRadius={12}
+                        fontSize={12}
+                        borderWidth="1px"
+                        borderColor={{ base: "#E2E8F0", _dark: "gray.600" }}
+                        color={{ base: "gray.800", _dark: "gray.100" }}
+                        _hover={{ bg: { base: "#E5EAF1", _dark: "gray.600" } }}
+                        cursor="pointer"
+                      >
+                        {text}
+                      </Box>
+                    ))}
+                  </Box>
                   <ReactQuill
                     theme="snow"
+                    ref={quillRef}
                     value={newMessage}
                     onChange={(html) => {
                       setNewMessage(html);
+                      // Extract plain text for filtering suggestions
+                      const textContent = html.replace(/<[^>]*>/g, '').trim();
+                      if (textContent.length > 0) {
+                        const filtered = quickReplies.filter(reply => 
+                          reply.toLowerCase().includes(textContent.toLowerCase())
+                        );
+                        setFilteredSuggestions(filtered);
+                        setShowSuggestions(filtered.length > 0);
+                      } else {
+                        setShowSuggestions(false);
+                        setFilteredSuggestions([]);
+                      }
                       // Typing indicator logic for rich editor
                       if (!socketConnected) return;
                       if (!typing) {
@@ -583,6 +749,57 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                     ]}
                     style={{ minHeight: 80 }}
                   />
+                  {/* Smart suggestions based on typed text */}
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <Box
+                      position="absolute"
+                      top="-40px"
+                      left="10px"
+                      right="10px"
+                      bg={{ base: "white", _dark: "gray.800" }}
+                      borderWidth="1px"
+                      borderColor={{ base: "gray.200", _dark: "gray.600" }}
+                      borderRadius="md"
+                      p="2"
+                      boxShadow="md"
+                      zIndex="10"
+                    >
+                      <Text fontSize="xs" color="gray.500" mb="1">Suggestions:</Text>
+                      <Box display="flex" flexWrap="wrap" gap="1">
+                        {filteredSuggestions.map((suggestion, idx) => (
+                          <Box
+                            key={idx}
+                            as="button"
+                            onClick={() => {
+                              const quill = quillRef.current?.getEditor?.();
+                              if (quill) {
+                                const range = quill.getSelection(true);
+                                if (range) {
+                                  quill.insertText(range.index, suggestion + " ");
+                                  quill.setSelection(range.index + suggestion.length + 1, 0);
+                                } else {
+                                  quill.insertText(quill.getLength() - 1, suggestion + " ");
+                                }
+                              } else {
+                                setNewMessage((prev) => (prev || "") + suggestion + " ");
+                              }
+                              setShowSuggestions(false);
+                            }}
+                            px="2"
+                            py="1"
+                            bg={{ base: "blue.50", _dark: "blue.900" }}
+                            color={{ base: "blue.700", _dark: "blue.200" }}
+                            borderRadius="sm"
+                            fontSize="xs"
+                            _hover={{ bg: { base: "blue.100", _dark: "blue.800" } }}
+                            cursor="pointer"
+                          >
+                            {suggestion}
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
                 <Tooltip label="Send" placement="top" hasArrow>
                   <IconButton

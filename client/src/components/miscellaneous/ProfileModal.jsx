@@ -2,7 +2,7 @@ import { ViewIcon } from "@chakra-ui/icons";
 import {
   Button,
   IconButton,
-  Image,
+  Avatar,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -51,12 +51,14 @@ const ProfileModal = ({ user, children }) => {
             alignItems="center"
             justifyContent="space-between"
           >
-            {/* Profile Picture */}
-            <Image
-              borderRadius="full"
-              boxSize="150px"
+            {/* Profile Picture (uses Avatar so initials render when image is missing) */}
+            <Avatar
+              name={user.name}
               src={user.pic}
-              alt={user.name}
+              size="2xl"
+              bg="gray.500"
+              color="white"
+              showBorder
             />
 
             {/* Email Address */}

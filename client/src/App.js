@@ -5,7 +5,7 @@ import "./App.css";
 
 const App = () => {
   return (
-    <div className="App">
+    <div className="App" style={{ width: '100%', background: 'transparent' }}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/chats" element={<Chat />} />

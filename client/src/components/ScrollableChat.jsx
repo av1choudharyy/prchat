@@ -53,7 +53,7 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy, onForward }) => {
               )}
 
               <Box
-                bg={message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"}
+                bg={message.sender._id === user._id ? { base: "#BEE3F8", _dark: "#2563eb" } : { base: "#B9F5D0", _dark: "#065f46" }}
                 borderRadius="20px"
                 px="3.5"
                 py="1.5"
@@ -121,6 +121,12 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy, onForward }) => {
                           }}
                           onClick={() => window.open(message.attachment.url, "_blank")}
                         />
+                      </Box>
+                    ) : message.attachment.type === "audio" ? (
+                      <Box mb="2">
+                        <audio controls src={message.attachment.url} style={{ width: "100%" }}>
+                          Your browser does not support the audio element.
+                        </audio>
                       </Box>
                     ) : (
                       <Box mb="2">

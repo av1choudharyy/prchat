@@ -8,7 +8,7 @@ const MessageSchema = mongoose.Schema(
     replyTo: { type: mongoose.Schema.Types.ObjectId, ref: "Message", default: null },
     attachment: {
       url: { type: String, default: null },
-      type: { type: String, enum: ["image", "file", null], default: null },
+      type: { type: String, enum: ["image", "file", "audio", null], default: null },
       name: { type: String, default: null },
       size: { type: Number, default: null },
     },
