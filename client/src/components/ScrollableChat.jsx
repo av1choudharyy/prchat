@@ -14,7 +14,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact }) => {
+const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact, }) => {
   const { user } = ChatState();
   const highlightRef = useRef();
   const emojiOptions = ["❤️", "😂", "👍", "🔥", "😢"];
@@ -42,6 +42,8 @@ const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact }) =
             const senderId =
   typeof message.sender === "string" ? message.sender : message.sender._id;
 const isOwnMessage = senderId === user._id;
+
+
 
             return (
               <Box

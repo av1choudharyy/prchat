@@ -9,6 +9,7 @@ import {
   Spinner,
   Text,
   useToast,
+  Button
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -22,6 +23,11 @@ const ENDPOINT = "http://localhost:5000";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
+  const quickReplies = [
+  { label: "Okay 👍", value: "Okay 👍" },
+  { label: "Thank you 🙏", value: "Thank you 🙏" },
+  { label: "Bye 👋", value: "Bye 👋" },
+  ];
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -248,8 +254,7 @@ const onReact = async (messageId, emoji) => {
                 </>
               )}
             </Box>
-
-            <FormControl maxW="300px" display="flex" gap="6px">
+<FormControl maxW="300px" display="flex" gap="6px">
   <Input
     placeholder="Search message..."
     value={searchTerm}
@@ -309,7 +314,25 @@ const onReact = async (messageId, emoji) => {
                 />
               </div>
             )}
+            <Box display="flex" gap="8px" mb="2" flexWrap="wrap">
+  {quickReplies.map((reply) => (
+    <Button
+  key={reply.value}
+  size="sm"
+  colorScheme="blue"
+  variant="solid"
+  bg="blue.200"
+  color="black"
+  _hover={{ bg: "blue.300" }}
+  onClick={() =>
+    setNewMessage((prev) => prev + (prev ? " " : "") + reply.value)
+  }
+>
+  {reply.label}
+</Button>
 
+  ))}
+</Box>
             <FormControl mt="3" isRequired>
               <Box display="flex" gap="8px">
                 <Input
