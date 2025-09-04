@@ -1,26 +1,20 @@
-# Frontend Development Dockerfile with Hot Reload
-FROM node:18-alpine
+# Use Node.js image
+FROM node:18
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy application files
+# Copy the rest of the source code
 COPY . .
 
-# Update proxy configuration for Docker
-RUN sed -i 's/"proxy": "http:\/\/localhost:5000"/"proxy": "http:\/\/backend:5000"/' package.json
-
-# Expose port
+# Expose port 3000
 EXPOSE 3000
 
-# Set environment variable to disable host check for tunneling
-ENV DANGEROUSLY_DISABLE_HOST_CHECK=true
-
-# Start the development server
-CMD ["npm", "start"]
+# Use npx to ensure react-scripts runs even if not globally installed
+CMD ["npx", "react-scripts", "start"]

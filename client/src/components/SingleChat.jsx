@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, CloseIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
@@ -8,6 +8,7 @@ import {
   Spinner,
   Text,
   useToast,
+  Button,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -17,7 +18,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5000"; 
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
@@ -28,15 +29,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
+  // NEW: state for reply feature
+  const [replyTo, setReplyTo] = useState(null);
+
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
 
   const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
-    if (!selectedChat) {
-      return;
-    }
+    if (!selectedChat) return;
 
     try {
       setLoading(true);
@@ -78,7 +79,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   }, []);
 
   useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
+    fetchMessages();
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
@@ -91,7 +92,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+          setFetchAgain(!fetchAgain);
         }
       } else {
         setMessages([...messages, newMessageRecieved]);
@@ -102,11 +103,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   });
 
   const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setNewMessage("");
 
         const response = await fetch("/api/message", {
           method: "POST",
@@ -117,13 +117,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: newMessage,
             chatId: selectedChat._id,
+            replyTo: replyTo ? replyTo._id : null, // NEW: send reply id
           }),
         });
         const data = await response.json();
 
         socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
+        setMessages([...messages, data]);
+        setReplyTo(null); // clear reply after sending
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -141,7 +142,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
 
-    // Typing Indicator Logic
     if (!socketConnected) return;
 
     if (!typing) {
@@ -162,6 +162,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       }
     }, timerLength);
   };
+
+  // Quick suggestion messages
+  const quickSuggestions = ["👍 Okay", "Thank you 🙏", "Sounds good!", "On it 🚀"];
 
   return (
     <>
@@ -227,9 +230,54 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                {/* Pass setReplyTo to child */}
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  setReplyTo={setReplyTo}
+                />
               </div>
             )}
+
+            {/* Reply preview box */}
+            {replyTo && (
+              <Box
+                bg="gray.200"
+                p={2}
+                borderRadius="md"
+                mb={2}
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Text fontSize="sm">
+                  Replying to:{" "}
+                  <b>{replyTo.sender.name}</b> —{" "}
+                  {replyTo.content.length > 30
+                    ? replyTo.content.substring(0, 30) + "..."
+                    : replyTo.content}
+                </Text>
+                <IconButton
+                  size="sm"
+                  icon={<CloseIcon />}
+                  onClick={() => setReplyTo(null)}
+                />
+              </Box>
+            )}
+
+            {/* Quick Suggestions */}
+            <Box display="flex" gap={2} flexWrap="wrap" mb={2}>
+              {quickSuggestions.map((text, idx) => (
+                <Button
+                  key={idx}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setNewMessage(text)}
+                >
+                  {text}
+                </Button>
+              ))}
+            </Box>
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
