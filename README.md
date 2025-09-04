@@ -10,6 +10,7 @@ A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 - User authentication
 - Typing indicators
 - Message notifications
+- File and image attachments with drag-and-drop support
 
 ## Tech Stack
 
@@ -17,6 +18,31 @@ A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 **Backend:** Node.js, Express, Socket.io  
 **Database:** MongoDB  
 **Authentication:** JWT
+
+## File Attachment Features
+
+### Supported File Types
+- **Images**: JPEG, JPG, PNG, GIF, WebP
+- **Videos**: MP4, AVI, MOV, WMV, WebM
+- **Audio**: MP3, WAV, OGG, M4A
+- **Documents**: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV
+- **Archives**: ZIP, RAR, 7Z
+
+### File Upload Specifications
+- **Maximum file size**: 50MB
+- **Drag and drop support**: Drop files directly into the chat input area
+- **Auto-send**: Files are automatically sent when selected (if no text message)
+- **Preview support**: Images display with preview and full-screen modal view
+- **Download support**: All files can be downloaded with original filenames
+
+### How to Use File Attachments
+1. Click the attachment icon (📎) in the chat input area
+2. Select a file from your device, or drag and drop files directly
+3. Files will be uploaded and sent automatically
+4. Images appear as previews in the chat
+5. Other files appear as downloadable cards with file info
+6. Click on images to view them in full-screen mode
+7. Click the download icon on file cards to download
 
 ## Getting Started
 

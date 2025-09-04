@@ -17,6 +17,9 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 app.use("/api/scheduled-message", scheduledMessageRoutes);
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // --------------------------DEPLOYMENT------------------------------
 
 if (process.env.NODE_ENV === "production") {
@@ -70,9 +73,13 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
+    if (!newMessageRecieved || !newMessageRecieved.chat || !Array.isArray(newMessageRecieved.chat) || newMessageRecieved.chat.length === 0) {
+      return console.log("Invalid message data received");
+    }
+
     let chat = newMessageRecieved.chat[0]; // Change it to object
 
-    if (!chat.users) return console.log("chat.users not defined");
+    if (!chat || !chat.users) return console.log("chat.users not defined");
 
     chat.users.forEach((user) => {
       if (user._id === newMessageRecieved.sender._id) return;

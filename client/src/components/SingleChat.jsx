@@ -22,6 +22,7 @@ import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 import EmojiPickerComponent from "./EmojiPicker";
 import MessageScheduler from "./MessageScheduler";
+import FileAttachment from "./FileAttachment";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -35,6 +36,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showScheduler, setShowScheduler] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -110,30 +113,50 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   });
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
+  const sendMessage = async (e, file = null) => {
+    // Check if 'Enter' key is pressed and we have something inside 'newMessage' or a file is selected
+    if ((e && e.key === "Enter" && (newMessage || selectedFile)) || file) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setIsUploading(true);
+        const fileToSend = file || selectedFile;
+
+        const formData = new FormData();
+        if (newMessage) {
+          formData.append('content', newMessage);
+        }
+        if (fileToSend) {
+          formData.append('file', fileToSend);
+        }
+        formData.append('chatId', selectedChat._id);
+
+        setNewMessage(""); // Clear message field before making API call
+        setSelectedFile(null); // Clear selected file
 
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
+          body: formData,
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
 
+        if (!data || !data._id) {
+          throw new Error("Invalid response data from server");
+        }
+
         socket.emit("new message", data);
-        setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
+        setIsUploading(false);
       } catch (error) {
+        console.error("Send message error:", error);
+        setIsUploading(false);
         return toast({
           title: "Error Occured!",
           description: "Failed to send the Message",
@@ -179,6 +202,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   const toggleEmojiPicker = () => {
     setShowEmojiPicker(!showEmojiPicker);
+  };
+
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+    // Auto-send file if no text message
+    if (!newMessage) {
+      sendMessage(null, file);
+    }
   };
 
   const handleScheduleMessage = async (scheduleData) => {
@@ -306,11 +337,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   placeholder="Enter a message.."
                   value={newMessage}
                   onChange={(e) => typingHandler(e)}
-                  pr="120px"
+                  pr="160px"
                   color={colorMode === "light" ? "black" : "white"}
                 />
-                <InputRightElement width="120px">
+                <InputRightElement width="160px">
                   <Box display="flex" gap={1}>
+                    <FileAttachment
+                      onFileSelect={handleFileSelect}
+                      isUploading={isUploading}
+                    />
                     <IconButton
                       aria-label="Schedule message"
                       icon={<span style={{ fontSize: "18px" }}>⏰</span>}

@@ -7,3 +7,6 @@ export { default as ChatBox } from "./ChatBox";
 export { default as MyChats } from "./MyChats";
 export { default as ChatLoading } from "./ChatLoading";
 export { default as ScrollableChat } from "./ScrollableChat";
+export { default as FileAttachment } from "./FileAttachment";
+export { default as ImagePreview } from "./ImagePreview";
+export { default as FilePreview } from "./FilePreview";
