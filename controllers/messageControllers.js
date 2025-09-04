@@ -72,4 +72,54 @@ const allMessages = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages };
+// @description     Forward an Existing Message to another chat
+// @route           POST /api/message/forward
+// @access          Protected
+const forwardMessage = async (req, res) => {
+  const { messageId, targetChatId } = req.body;
+  if (!messageId || !targetChatId) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: "messageId and targetChatId are required",
+    });
+  }
+
+  try {
+    const original = await Message.findById(messageId).populate("sender", "name pic");
+    if (!original) {
+      return res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: "Original message not found",
+      });
+    }
+
+    let forwarded = await Message.create({
+      sender: req.user._id,          
+      content: original.content,     
+      chat: targetChatId,
+     
+    });
+
+    forwarded = await (await forwarded.populate("sender", "name pic")).populate({
+      path: "chat",
+      select: "chatName isGroupChat users",
+      model: "Chat",
+      populate: { path: "users", select: "name email pic", model: "User" },
+    });
+
+    await Chat.findByIdAndUpdate(targetChatId, { latestMessage: forwarded });
+
+    return res.status(201).json(forwarded);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: "Failed to forward Message",
+    });
+  }
+};
+
+module.exports = { sendMessage, allMessages, forwardMessage };
+

@@ -1,6 +1,7 @@
 import { FiCopy } from "react-icons/fi";        // Copy
 import { IoReturnDownBack } from "react-icons/io5"; // Reply
-import { MdClose } from "react-icons/md";       // Cancel (X)
+import { MdClose } from "react-icons/md"; 
+import { FiCornerUpRight } from "react-icons/fi";     // Cancel (X)
 import { useEffect, useState } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
@@ -19,6 +20,7 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, Button, VStack } from "@chakra-ui/react";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -32,7 +34,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
-
+  const [isForwardOpen, setIsForwardOpen] = useState(false);
+  const [chatsForForward, setChatsForForward] = useState([]);
+  const [forwardTargetId, setForwardTargetId] = useState(null);
+  const [forwardLoading, setForwardLoading] = useState(false);
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
@@ -173,6 +178,77 @@ return () => {
       }
     }, timerLength);
   };
+const openForwardModal = async () => {
+  setIsForwardOpen(true);      // open immediately
+  setForwardLoading(true);
+  try {
+    const res = await fetch("/api/chat", {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const data = await res.json();
+    setChatsForForward(Array.isArray(data) ? data : []);
+  } catch (e) {
+    toast({
+      title: "Failed to load chats",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+      position: "bottom-right",
+      variant: "solid",
+    });
+  } finally {
+    setForwardLoading(false);
+  }
+};
+
+const handleForward = async () => {
+  if (!forwardTargetId || !selectedMessage) return;
+  try {
+    const res = await fetch("/api/message/forward", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messageId: selectedMessage._id,
+        targetChatId: forwardTargetId,
+      }),
+    });
+    const data = await res.json();
+
+    // broadcast to recipients
+    socket.emit("new message", data);
+
+    // if you forwarded into the current chat, show instantly
+    if (selectedChat && selectedChat._id === forwardTargetId) {
+      setMessages((prev) => [...prev, data]);
+    }
+
+    // reset UI
+    setIsForwardOpen(false);
+    setForwardTargetId(null);
+    setSelectedMessage(null);
+
+    toast({
+      title: "Message forwarded",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+      position: "bottom-right",
+      variant: "solid",
+    });
+  } catch (e) {
+    toast({
+      title: "Failed to forward message",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+      position: "bottom-right",
+      variant: "solid",
+    });
+  }
+};
 
   return (
     <>
@@ -276,10 +352,12 @@ return () => {
 {/* Forward (placeholder) */}
 <button
   style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "20px" }}
-  onClick={() => alert("Forward feature coming soon!")}
+  onClick={openForwardModal}
 >
-  📤
+  <FiCornerUpRight />
 </button>
+
+
 
   </div>
 )}
@@ -303,6 +381,41 @@ return () => {
     </button>
   </div>
 )}
+<Modal isOpen={isForwardOpen} onClose={() => setIsForwardOpen(false)} isCentered>
+    <ModalOverlay />
+    <ModalContent>
+      <ModalHeader>Forward to…</ModalHeader>
+      <ModalCloseButton />
+      <ModalBody>
+        {forwardLoading ? (
+          <Text>Loading chats…</Text>
+        ) : (
+          <VStack align="stretch" spacing={2} maxH="300px" overflowY="auto">
+            {chatsForForward.length === 0 && <Text>No chats found</Text>}
+            {chatsForForward.map((c) => (
+              <Button
+                key={c._id}
+                variant={forwardTargetId === c._id ? "solid" : "ghost"}
+                colorScheme={forwardTargetId === c._id ? "blue" : "gray"}
+                justifyContent="flex-start"
+                onClick={() => setForwardTargetId(c._id)}
+              >
+                {c.isGroupChat ? c.chatName : getSender(user, c.users)}
+              </Button>
+            ))}
+          </VStack>
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button mr={3} onClick={() => setIsForwardOpen(false)}>
+          Cancel
+        </Button>
+        <Button colorScheme="blue" isDisabled={!forwardTargetId} onClick={handleForward}>
+          Forward
+        </Button>
+      </ModalFooter>
+    </ModalContent>
+  </Modal>
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
@@ -312,6 +425,7 @@ return () => {
                 onChange={(e) => typingHandler(e)}
               />
             </FormControl>
+
           </Box>
         </>
       ) : (
@@ -324,6 +438,7 @@ return () => {
           <Text fontSize="3xl" pb="3" fontFamily="Work sans">
             Click on a user to start chatting
           </Text>
+          
         </Box>
       )}
     </>
