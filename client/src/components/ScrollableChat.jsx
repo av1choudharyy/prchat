@@ -14,13 +14,21 @@ import typingAnimation from "../animations/typing.json";
 
 const ScrollableChat = ({ messages, isTyping }) => {
   const { user } = ChatState();
-
   const scrollRef = useRef();
 
   useEffect(() => {
-    // Scroll to the bottom when messeges render or sender is typing
+    // Scroll to the bottom when messages render or sender is typing
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
+
+  // timestamp format function
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return "";
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }); // ex: 03:25 PM
+  };
 
   return (
     <>
@@ -28,10 +36,14 @@ const ScrollableChat = ({ messages, isTyping }) => {
         className="hide-scrollbar"
         style={{ overflowX: "hidden", overflowY: "auto" }}
       >
-        {/* If something inside the messages, render the messages */}
+        {/* Render messages */}
         {messages &&
           messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
+            <div
+              ref={scrollRef}
+              key={message._id}
+              style={{ display: "flex", flexDirection: "column" }}
+            >
               {(isSameSender(messages, message, index, user._id) ||
                 isLastMessage(messages, index, user._id)) && (
                 <Tooltip
@@ -58,7 +70,6 @@ const ScrollableChat = ({ messages, isTyping }) => {
                   borderRadius: "20px",
                   padding: "5px 15px",
                   maxWidth: "75%",
-
                   marginLeft: isSameSenderMargin(
                     messages,
                     message,
@@ -71,6 +82,24 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 }}
               >
                 {message.content}
+              </span>
+
+              {/* Time stamp under message */}
+              <span
+                style={{
+                  fontSize: "0.7rem",
+                  color: "#666",
+                  marginLeft: isSameSenderMargin(
+                    messages,
+                    message,
+                    index,
+                    user._id
+                  ),
+                  marginTop: 2,
+                  marginBottom: 8,
+                }}
+              >
+                {formatTimestamp(message.createdAt)}
               </span>
             </div>
           ))}

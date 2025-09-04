@@ -1,66 +1,90 @@
-const { Message, Chat } = require("../models");
+const Message = require("../models/messageModel");
+const User = require("../models/userModel");
+const Chat = require("../models/chatModel");
 
-// @description     Create New Message
-// @route           POST /api/Message/
-// @access          Protected
+// ✅ Send new message
 const sendMessage = async (req, res) => {
   const { content, chatId } = req.body;
 
   if (!content || !chatId) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Invalid data passed into request",
-    });
+    console.log("Invalid data passed into request");
+    return res.sendStatus(400);
   }
 
+  let newMessage = {
+    sender: req.user._id,
+    content: content,
+    chat: chatId,
+  };
+
   try {
-    // Create a new message
-    let message = await Message.create({
-      sender: req.user._id, // Logged in user id,
-      content,
-      chat: chatId,
+    let message = await Message.create(newMessage);
+    message = await message.populate("sender", "name pic");
+    message = await message.populate("chat");
+    message = await User.populate(message, {
+      path: "chat.users",
+      select: "name pic email",
     });
 
-    message = await (
-      await message.populate("sender", "name pic")
-    ).populate({
-      path: "chat",
-      select: "chatName isGroupChat users",
-      model: "Chat",
-      populate: { path: "users", select: "name email pic", model: "User" },
-    });
-
-    // Update latest message
-    await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
-
-    return res.status(201).json(message); // Send message we just created now
+    res.json(message);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Failed to create New Message",
-    });
+    res.status(500).send({ message: "Message send failed", error });
   }
 };
 
-// @description     Get all Messages
-// @route           GET /api/Message/:chatId
-// @access          Protected
+// ✅ Get all messages of a chat
 const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
       .populate("chat");
 
-    res.status(200).json(messages);
+    res.json(messages);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Failed to fetch all Messages",
-    });
+    res.status(500).send({ message: "Fetching messages failed", error });
   }
 };
 
-module.exports = { sendMessage, allMessages };
+// ✅ React to a message (NEW FUNCTION)
+const reactToMessage = async (req, res) => {
+  const { messageId, emoji } = req.body;
+  const userId = req.user._id;
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) return res.status(404).json({ message: "Message not found" });
+
+    // check if this user already reacted
+    const existingReactionIndex = message.reactions.findIndex(
+      (r) => r.user.toString() === userId.toString()
+    );
+
+    if (existingReactionIndex !== -1) {
+      if (message.reactions[existingReactionIndex].emoji === emoji) {
+        // Same emoji clicked again => remove
+        message.reactions.splice(existingReactionIndex, 1);
+      } else {
+        // Change the emoji
+        message.reactions[existingReactionIndex].emoji = emoji;
+      }
+    } else {
+      // Add new reaction
+      message.reactions.push({ user: userId, emoji });
+    }
+
+    await message.save();
+
+    const updatedMessage = await Message.findById(message._id)
+      .populate("sender", "name pic email")
+      .populate("chat")
+      .populate("reactions.user", "name pic email");
+
+    res.json(updatedMessage);
+  } catch (error) {
+    res.status(500).json({ message: "Reacting to message failed", error });
+  }
+};
+
+module.exports = { sendMessage, allMessages, reactToMessage };
+
