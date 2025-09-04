@@ -15,6 +15,7 @@ import {
   MenuItem,
   MenuList,
   Spinner,
+  IconButton,
   Text,
   Tooltip,
   useDisclosure,
@@ -23,6 +24,7 @@ import {
 import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { SunIcon, MoonIcon } from "@chakra-ui/icons";
 
 import { ChatState } from "../../context/ChatProvider";
 import ProfileModal from "./ProfileModal";
@@ -31,7 +33,7 @@ import UserListItem from "../UserAvatar/UserListItem";
 import { getSender } from "../../config/ChatLogics";
 import "../../App.css";
 
-const SideDrawer = () => {
+const SideDrawer = ({colorMode , toggleColorMode}) => {
   const [search, setSearch] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -136,7 +138,7 @@ const SideDrawer = () => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={colorMode === "dark" ? "gray.800" : "white"}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
@@ -157,10 +159,25 @@ const SideDrawer = () => {
         </Text>
 
         {/* User Profile and Bell Icon Section */}
-        <div>
+        <div style={{display:"flex",alignItems:"center"}}>
+           <Menu>
+             <Box display="flex" justifyContent="flex-end" p={2}>
+        <IconButton
+          aria-label="Toggle dark mode"
+          onClick={toggleColorMode}
+          icon={colorMode === "dark" ? <SunIcon color="yellow.400" /> : <MoonIcon color="gray.700" />}
+          variant="ghost"
+          color={colorMode === "dark" ? "yellow.400" : "gray.700"}
+        />
+      </Box>
+           </Menu>
           <Menu>
             <MenuButton p="1" className="notification-badge-container">
-              <BellIcon fontSize="2xl" m="1" />
+              <BellIcon
+                fontSize="2xl"
+                m="1"
+                color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+              />
 
               {notification.length > 0 && (
                 <span className="notification-badge">
@@ -192,7 +209,7 @@ const SideDrawer = () => {
           </Menu>
 
           <Menu>
-            <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+            <MenuButton as={Button} rightIcon={<ChevronDownIcon color={colorMode === "dark" ? "yellow.300" : "gray.700"} />}>
               <Avatar
                 name={user.name}
                 size="sm"

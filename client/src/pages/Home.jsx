@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 
 import { Login, Signup } from "../components";
 
+
 const Home = () => {
   const navigate = useNavigate();
 
