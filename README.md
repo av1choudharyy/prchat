@@ -61,10 +61,9 @@ npm run client
 ## Test Users
 
 Pre-configured test accounts:
-- test1@example.com / password123
-- test2@example.com / password123
-- test3@example.com / password123
-- guest@example.com / 123456
+- Shree@gmail.com / Shree
+- a@gmail.com / a
+
 
 ## Project Structure
 
