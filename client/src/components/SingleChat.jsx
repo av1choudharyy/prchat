@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { ArrowBackIcon, ArrowForwardIcon } from "@chakra-ui/icons";
+import axios from "axios";
 import {
   Box,
   FormControl,
@@ -136,6 +137,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       handleSendMessage();
     }
   };
+const onReact = async (messageId, emoji) => {
+  try {
+    const { data: updatedMessage } = await axios.post(
+      "/api/message/react",
+      { messageId, emoji },
+      { headers: { Authorization: `Bearer ${user.token}` } }
+    );
+
+    setMessages((prevMessages) =>
+      prevMessages.map((msg) =>
+        msg._id === updatedMessage._id ? updatedMessage : msg
+      )
+    );
+  } catch (err) {
+    console.error("Failed to react:", err);
+  }
+};
 
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
@@ -286,6 +304,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   messages={messages}
                   isTyping={isTyping}
                   highlightedMessageId={highlightedMessageId}
+                  onReact={onReact}
+
                 />
               </div>
             )}

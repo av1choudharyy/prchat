@@ -62,5 +62,26 @@ const allMessages = async (req, res) => {
     });
   }
 };
+const addReaction = async (req, res) => {
+  const { messageId, emoji } = req.body;
+  const userId = req.user._id;
 
-module.exports = { sendMessage, allMessages };
+  try {
+    const message = await Message.findById(messageId);
+    if (!message) return res.status(404).send("Message not found");
+
+    // Remove previous reaction from this user
+    message.reactions = message.reactions.filter(
+      (r) => r.user.toString() !== userId.toString()
+    );
+
+    // Add new reaction
+    message.reactions.push({ user: userId, emoji });
+
+    await message.save();
+    res.json(message);
+  } catch (error) {
+    res.status(500).send("Server error");
+  }
+};
+module.exports = { sendMessage, allMessages ,addReaction};
