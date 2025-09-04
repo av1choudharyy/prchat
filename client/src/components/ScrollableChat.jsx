@@ -191,11 +191,13 @@ const ScrollableChat = ({ messages, isTyping, onReply, onCopy, onForward }) => {
                       size="xs"
                       variant="ghost"
                       icon={<CopyIcon boxSize={3.5} />}
-                      onClick={() =>
-                        onCopy?.(
-                          message.attachment?.url || message.content || ""
-                        )
-                      }
+                      onClick={() => {
+                        // Extract plain text from HTML content
+                        const plainText = message.content 
+                          ? message.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+                          : message.attachment?.url || "";
+                        onCopy?.(plainText);
+                      }}
                     />
                   </Tooltip>
                 </HStack>
