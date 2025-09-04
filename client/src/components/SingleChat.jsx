@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -22,7 +22,7 @@ import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 import EmojiPickerComponent from "./EmojiPicker";
 import MessageScheduler from "./MessageScheduler";
-import FileAttachment from "./FileAttachment";
+import { FileAttachment, SmartReplySuggestions, AutoComplete } from "./index";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -38,6 +38,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [showScheduler, setShowScheduler] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showSmartReplySuggestions, setShowSmartReplySuggestions] = useState(false);
+  const [smartReplySuggestions, setSmartReplySuggestions] = useState([]);
+  const inputRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -258,6 +261,59 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     setShowScheduler(false);
   };
 
+  const handleSmartReplySuggestions = (suggestions) => {
+    setSmartReplySuggestions(suggestions);
+    setShowSmartReplySuggestions(true);
+  };
+
+  const handleSmartReplySuggestionClick = (suggestion) => {
+    setNewMessage(suggestion);
+    // Auto-send the suggestion
+    setTimeout(() => {
+      const formData = new FormData();
+      formData.append('content', suggestion);
+      formData.append('chatId', selectedChat._id);
+
+      fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (!data || !data._id) {
+            throw new Error("Invalid response data from server");
+          }
+          socket.emit("new message", data);
+          setMessages([...messages, data]);
+          setNewMessage(""); // Clear the input after sending
+        })
+        .catch(error => {
+          console.error("Send suggestion error:", error);
+          toast({
+            title: "Error Occurred!",
+            description: "Failed to send the suggestion",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+            position: "bottom-right",
+            variant: "solid",
+          });
+        });
+    }, 100);
+  };
+
+  const handleAutoCompleteAccept = (suggestion) => {
+    setNewMessage(suggestion);
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -369,6 +425,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               onClose={() => setShowScheduler(false)}
               onSchedule={handleScheduleMessage}
               currentMessage={newMessage}
+            />
+
+            <SmartReplySuggestions
+              messages={messages}
+              onSuggestionClick={handleSmartReplySuggestionClick}
+              currentUser={user}
+              isVisible={true}
             />
           </Box>
         </>
