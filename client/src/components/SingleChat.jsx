@@ -1,6 +1,7 @@
 import { FiCopy } from "react-icons/fi";        // Copy
 import { IoReturnDownBack } from "react-icons/io5"; // Reply
 import { MdClose } from "react-icons/md"; 
+import { FiSend } from "react-icons/fi";  // Send
 import { FiCornerUpRight } from "react-icons/fi";     // Cancel (X)
 import { useEffect, useState } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
@@ -38,6 +39,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [chatsForForward, setChatsForForward] = useState([]);
   const [forwardTargetId, setForwardTargetId] = useState(null);
   const [forwardLoading, setForwardLoading] = useState(false);
+  const [sendingQuick, setSendingQuick] = useState(false);
+
+  const [suggestions] = useState(["Hello", "Hi", "Okay", "Thank you", "Got it!", "You'r welcome"]);
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
@@ -178,6 +182,49 @@ return () => {
       }
     }, timerLength);
   };
+  const handleSendQuick = async (text) => {
+  if (!text || !selectedChat) return;
+  try {
+    setSendingQuick(true);
+    // stop typing for this room (just like normal send)
+    socket.emit("stop typing", selectedChat._id);
+
+    // clear composer/selection states
+    setNewMessage("");
+    setSelectedMessage(null);
+    setReplyingTo(null);
+
+    // send to API
+    const res = await fetch("/api/message", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        content: text,
+        chatId: selectedChat._id,
+      }),
+    });
+    const data = await res.json();
+
+    // broadcast via socket and update UI
+    socket.emit("new message", data);
+    setMessages((prev) => [...prev, data]);
+  } catch (e) {
+    toast({
+      title: "Failed to send",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+      position: "bottom-right",
+      variant: "solid",
+    });
+  } finally {
+    setSendingQuick(false);
+  }
+};
+
 const openForwardModal = async () => {
   setIsForwardOpen(true);      // open immediately
   setForwardLoading(true);
@@ -381,6 +428,28 @@ const handleForward = async () => {
     </button>
   </div>
 )}
+{/* Suggestions Bar */}
+<div style={{ display: "flex", gap: "8px", marginBottom: "5px" }}>
+  {suggestions.map((s, idx) => (
+    <button
+      key={idx}
+      style={{
+        padding: "5px 10px",
+        borderRadius: "15px",
+        border: "1px solid #ccc",
+        background: "#f5f5f5",
+        cursor: "pointer",
+        fontSize: "14px",
+        opacity: sendingQuick ? 0.6 : 1,
+      }}
+      disabled={sendingQuick}
+      onClick={() => handleSendQuick(s)}   
+    >
+      {s}
+    </button>
+  ))}
+</div>
+
 <Modal isOpen={isForwardOpen} onClose={() => setIsForwardOpen(false)} isCentered>
     <ModalOverlay />
     <ModalContent>
@@ -416,15 +485,31 @@ const handleForward = async () => {
       </ModalFooter>
     </ModalContent>
   </Modal>
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
-            </FormControl>
+  
+<FormControl mt="3" isRequired>
+  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+    <Input
+      variant="filled"
+      bg="#E0E0E0"
+      placeholder="Enter a message.."
+      value={newMessage}
+      onChange={(e) => typingHandler(e)}
+      onKeyDown={(e) => sendMessage(e)} // still support Enter
+    />
+    <button
+      style={{
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        fontSize: "22px",
+        color: "#007bff",
+      }}
+      onClick={() => sendMessage({ key: "Enter" })} // fake Enter key
+    >
+      <FiSend />
+    </button>
+  </div>
+</FormControl>
 
           </Box>
         </>
