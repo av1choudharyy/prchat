@@ -6,7 +6,8 @@ import { FiCornerUpRight } from "react-icons/fi";     // Cancel (X)
 import { FiTrash2 } from "react-icons/fi"; // Delete
 import { MdPushPin, MdOutlinePushPin } from "react-icons/md"; // Pin
 import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { FiSearch } from "react-icons/fi";
+import { ArrowBackIcon, ViewIcon} from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
@@ -42,7 +43,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [forwardTargetId, setForwardTargetId] = useState(null);
   const [forwardLoading, setForwardLoading] = useState(false);
   const [sendingQuick, setSendingQuick] = useState(false);
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
   const [suggestions] = useState(["Hello", "Hi", "Okay", "Thank you", "Got it!", "You'r welcome"]);
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -317,41 +320,73 @@ const handleForward = async () => {
   }
 };
 
+const handleSearch = async () => {
+  if (!searchTerm.trim()) return;
+  try {
+    const res = await fetch(`/api/message/search/${selectedChat._id}?query=${searchTerm}`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const data = await res.json();
+    setSearchResults(data);
+  } catch {
+    toast({
+      title: "Search failed",
+      status: "error",
+      duration: 3000,
+      isClosable: true,
+    });
+  }
+};
+
   return (
     <>
       {selectedChat ? (
         <>
-          <Text
-            fontSize={{ base: "28px", md: "30px" }}
-            pb="3"
-            px="2"
-            w="100%"
-            fontFamily="Work sans"
-            display="flex"
-            justifyContent={{ base: "space-between" }}
-            alignItems="center"
-          >
-            <IconButton
-              display={{ base: "flex", md: "none" }}
-              icon={<ArrowBackIcon />}
-              onClick={() => setSelectedChat("")}
-            />
-            {!selectedChat.isGroupChat ? (
-              <>
-                {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
-              </>
-            ) : (
-              <>
-                {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
-              </>
-            )}
-          </Text>
+<Text
+  fontSize={{ base: "28px", md: "30px" }}
+  pb="3"
+  px="2"
+  w="100%"
+  fontFamily="Work sans"
+  display="flex"
+  justifyContent="space-between"
+  alignItems="center"
+>
+  {/* Left: back button on mobile */}
+  <IconButton
+    display={{ base: "flex", md: "none" }}
+    icon={<ArrowBackIcon />}
+    onClick={() => setSelectedChat("")}
+  />
+
+  {/* Middle: ONLY the title */}
+  <span>
+    {!selectedChat.isGroupChat
+      ? getSender(user, selectedChat.users)
+      : selectedChat.chatName.toUpperCase()}
+  </span>
+
+  {/* Right: Search + Eye/Modal (grouped, small gap) */}
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <IconButton
+      aria-label="Search messages"
+      variant="ghost"
+      size="sm"
+      icon={<FiSearch />}
+      onClick={() => setShowSearch(s => !s)}
+    />
+
+    {!selectedChat.isGroupChat ? (
+      <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+    ) : (
+      <UpdateGroupChatModal
+        fetchAgain={fetchAgain}
+        setFetchAgain={setFetchAgain}
+        fetchMessages={fetchMessages}
+      />
+    )}
+  </div>
+</Text>
 
           <Box
             display="flex"
@@ -364,6 +399,7 @@ const handleForward = async () => {
             borderRadius="lg"
             overflowY="hidden"
           >
+        
             {loading ? (
               <Spinner
                 size="xl"
@@ -540,9 +576,7 @@ const handleForward = async () => {
             headers: { Authorization: `Bearer ${user.token}` },
           });
           const updated = await res.json();
-
           setMessages(prev => prev.map(m => ({ ...m, pinned: false })));
-
           socket.emit("pin updated", { chatId: selectedChat._id, message: null });
         }}
         style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "18px" }}
@@ -554,6 +588,61 @@ const handleForward = async () => {
 })()}
 </div>
             )}
+            {showSearch && (
+  <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+    <Input
+      placeholder="Search messages..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") handleSearch();
+        if (e.key === "Escape") setShowSearch(false);
+      }}
+      bg="white"
+    />
+    <Button colorScheme="blue" onClick={handleSearch}>Search</Button>
+    <Button
+      variant="ghost"
+      onClick={() => {
+        setSearchResults([]);
+        setSearchTerm("");
+        setShowSearch(false);
+      }}
+      title="Close"
+    >
+      <MdClose />
+    </Button>
+  </div>
+)}
+{showSearch && searchResults.length > 0 && (
+  <Box bg="white" p={3} borderRadius="md" mb={3} boxShadow="sm">
+    <Text fontWeight="bold" mb={2}>
+      Search Results ({searchResults.length})
+    </Text>
+
+    <div style={{ maxHeight: 200, overflowY: "auto" }}>
+      {searchResults.map((msg) => (
+        <Box
+          key={msg._id}
+          p={2}
+          borderBottom="1px solid #eee"
+          _hover={{ bg: "#f7f7f7", cursor: "pointer" }}
+          onClick={() => {
+            // optional future: scroll to message
+            setSearchResults([]);
+            setShowSearch(false);
+          }}
+        >
+          <Text fontSize="xs" color="gray.600">
+            {msg.sender?.name}
+          </Text>
+          <Text>{msg.content}</Text>
+        </Box>
+      ))}
+    </div>
+  </Box>
+)}
+
 <ScrollableChat 
                 messages={messages} 
                 isTyping={isTyping} 

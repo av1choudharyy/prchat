@@ -202,5 +202,28 @@ const unpinMessage = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages,forwardMessage,pinMessage, unpinMessage, deleteMessage };
+// @desc    Search messages in a chat
+// @route   GET /api/message/search/:chatId
+// @access  Protected
+const searchMessages = async (req, res) => {
+  try {
+    const { query } = req.query; // keyword from ?query=
+    if (!query) {
+      return res.status(400).json({ message: "Query is required" });
+    }
+
+    const messages = await Message.find({
+      chat: req.params.chatId,
+      content: { $regex: query, $options: "i" }, // case-insensitive search
+    })
+      .populate("sender", "name pic email")
+      .populate("chat");
+
+    res.json(messages);
+  } catch (error) {
+    res.status(400).json({ message: "Failed to search messages" });
+  }
+};
+
+module.exports = { sendMessage, allMessages,forwardMessage,pinMessage, unpinMessage, deleteMessage, searchMessages,};
 
