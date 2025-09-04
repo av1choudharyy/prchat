@@ -1,88 +1,57 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
-import { useEffect, useRef } from "react";
-import Lottie from "lottie-react";
+import { Box, Text, HStack, IconButton } from "@chakra-ui/react";
+import { CopyIcon, RepeatIcon } from "@chakra-ui/icons";
 
-import "../App.css";
-import {
-  isLastMessage,
-  isSameSender,
-  isSameSenderMargin,
-  isSameUser,
-} from "../config/ChatLogics";
-import { ChatState } from "../context/ChatProvider";
-import typingAnimation from "../animations/typing.json";
-
-const ScrollableChat = ({ messages, isTyping }) => {
-  const { user } = ChatState();
-
-  const scrollRef = useRef();
-
-  useEffect(() => {
-    // Scroll to the bottom when messeges render or sender is typing
-    scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isTyping]);
-
+const ScrollableChat = ({ messages, user, setReplyMessage }) => {
   return (
-    <>
-      <div
-        className="hide-scrollbar"
-        style={{ overflowX: "hidden", overflowY: "auto" }}
-      >
-        {/* If something inside the messages, render the messages */}
-        {messages &&
-          messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
-              {(isSameSender(messages, message, index, user._id) ||
-                isLastMessage(messages, index, user._id)) && (
-                <Tooltip
-                  label={message.sender.name}
-                  placement="bottom-start"
-                  hasArrow
-                >
-                  <Avatar
-                    mt="7px"
-                    mr="1"
-                    size="sm"
-                    cursor="pointer"
-                    name={message.sender.name}
-                    src={message.sender.pic}
-                  />
-                </Tooltip>
-              )}
+    <Box display="flex" flexDirection="column" gap={2}>
+      {messages.map((message) => {
+        const isOwn = message.sender._id === user._id;
+        return (
+          <Box
+            key={message._id}
+            bg={isOwn ? "#DCF8C6" : "#FFFFFF"}
+            alignSelf={isOwn ? "flex-end" : "flex-start"}
+            px={3}
+            py={2}
+            borderRadius="lg"
+            maxW="70%"
+          >
+            <Text fontSize="sm" color="gray.700">{message.sender.name}</Text>
 
-              <span
-                style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  maxWidth: "75%",
+            {message.replyToMessage && (
+              <Box bg="gray.100" p={1} borderRadius="md" mb={1}>
+                <Text fontSize="xs" color="gray.600">
+                  Replying to {message.replyToMessage.sender.name}: {message.replyToMessage.content}
+                </Text>
+              </Box>
+            )}
 
-                  marginLeft: isSameSenderMargin(
-                    messages,
-                    message,
-                    index,
-                    user._id
-                  ),
-                  marginTop: isSameUser(messages, message, index, user._id)
-                    ? 3
-                    : 10,
+            <Text>{message.content}</Text>
+
+            <HStack mt={1} spacing={1}>
+              <IconButton
+                size="xs"
+                icon={<CopyIcon />}
+                onClick={() => {
+                  navigator.clipboard.writeText(message.content);
+                  alert("Message copied!");
                 }}
-              >
-                {message.content}
-              </span>
-            </div>
-          ))}
-      </div>
-      {isTyping ? (
-        <div style={{ width: "70px", marginTop: "5px" }}>
-          <Lottie animationData={typingAnimation} loop={true} />
-        </div>
-      ) : (
-        <></>
-      )}
-    </>
+                aria-label="Copy message"
+              />
+              {!isOwn && (
+                <IconButton
+                  size="xs"
+                  icon={<RepeatIcon />}
+                  onClick={() => setReplyMessage(message)}
+                  aria-label="Reply message"
+                />
+              )}
+              <Text fontSize="xs" color="gray.500">{new Date(message.createdAt).toLocaleTimeString()}</Text>
+            </HStack>
+          </Box>
+        );
+      })}
+    </Box>
   );
 };
 
