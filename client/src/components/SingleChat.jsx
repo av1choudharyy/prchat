@@ -1,3 +1,6 @@
+import { FiCopy } from "react-icons/fi";        // Copy
+import { IoReturnDownBack } from "react-icons/io5"; // Reply
+import { MdClose } from "react-icons/md";       // Cancel (X)
 import { useEffect, useState } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
@@ -27,6 +30,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [selectedMessage, setSelectedMessage] = useState(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -87,26 +92,35 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
         !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat[0]._id
+        selectedChatCompare._id !== newMessageRecieved.chat._id
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
           setFetchAgain(!fetchAgain); // Fetch all the chats again
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
       }
     });
-
-    // eslint-disable-next-line
-  });
+return () => {
+    socket.off("message recieved");
+  };
+}, [notification, setNotification, setFetchAgain]);
 
   const sendMessage = async (e) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
       try {
+        const messageData = {
+  content: newMessage,
+  chatId: selectedChat._id,
+  replyTo: replyingTo ? replyingTo._id : null, // ✅ NEW LINE
+};
+
         setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setSelectedMessage(null); // clear reply preview after sending
+        setReplyingTo(null);
 
         const response = await fetch("/api/message", {
           method: "POST",
@@ -114,10 +128,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
+          body: JSON.stringify(messageData),
         });
         const data = await response.json();
 
@@ -227,10 +238,71 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                
+{selectedMessage && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "flex-end",
+      alignItems: "center",
+      backgroundColor: "#f5f5f5",
+      padding: "8px",
+      borderBottom: "1px solid #ddd",
+      gap: "15px"
+    }}
+  >
+    {/* Copy */}
+<button
+  style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "20px" }}
+  onClick={() => {
+    navigator.clipboard.writeText(selectedMessage.content);
+    setSelectedMessage(null);
+  }}
+>
+  <FiCopy />
+</button>
+
+{/* Reply */}
+<button
+  style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "20px" }}
+  onClick={() => {
+    setReplyingTo(selectedMessage);
+    setSelectedMessage(null);
+  }}
+>
+  <IoReturnDownBack />
+</button>
+
+{/* Forward (placeholder) */}
+<button
+  style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "20px" }}
+  onClick={() => alert("Forward feature coming soon!")}
+>
+  📤
+</button>
+
+  </div>
+)}
+<ScrollableChat 
+                messages={messages} 
+                isTyping={isTyping} 
+                setReplyingTo={setReplyingTo} // ✅ NEW PROP
+                selectedMessage={selectedMessage}
+                setSelectedMessage={setSelectedMessage}
+                />  
               </div>
             )}
-
+{replyingTo && (
+  <div style={{ background: "#f0f0f0", padding: "6px", borderRadius: "5px", marginBottom: "5px" }}>
+    <strong>Replying to:</strong> {replyingTo.content}
+    <button 
+      style={{ marginLeft: "10px", color: "red", border: "none", background: "transparent", cursor: "pointer" }}
+      onClick={() => setReplyingTo(null)}
+    >
+      <MdClose />
+    </button>
+  </div>
+)}
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
