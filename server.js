@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const { connectToMongoDB } = require("./config");
-const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
+const { userRoutes, chatRoutes, messageRoutes, fileRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
 
 const app = express(); // Use express js in our app
@@ -14,6 +14,7 @@ connectToMongoDB(); // Connect to Database
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/files", fileRoutes);
 
 // --------------------------DEPLOYMENT------------------------------
 
@@ -42,7 +43,7 @@ const server = app.listen(process.env.PORT, () =>
 
 const io = require("socket.io")(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.NODE_ENV === "production" ? false : ["http://localhost:3000"],
   },
   pingTimeout: 60 * 1000,
 });
@@ -64,16 +65,40 @@ io.on("connection", (socket) => {
 
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
-  socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+  socket.on("new message", (newMessageReceived) => {
+    var chat = newMessageReceived.chat;
 
     if (!chat.users) return console.log("chat.users not defined");
 
     chat.users.forEach((user) => {
-      if (user._id === newMessageRecieved.sender._id) return;
+      if (user._id === newMessageReceived.sender._id) return;
 
-      socket.in(user._id).emit("message recieved", newMessageRecieved);
+      socket.in(user._id).emit("message received", newMessageReceived);
     });
+  });
+
+  // Handle file uploads
+  socket.on("file uploaded", (fileMessages) => {
+    if (!Array.isArray(fileMessages)) {
+      fileMessages = [fileMessages];
+    }
+
+    fileMessages.forEach((messageData) => {
+      const chat = messageData.message.chat;
+
+      if (!chat.users) return console.log("chat.users not defined");
+
+      chat.users.forEach((user) => {
+        if (user._id === messageData.message.sender._id) return;
+
+        socket.in(user._id).emit("message received", messageData.message);
+      });
+    });
+  });
+
+  socket.on("leave chat", (room) => {
+    socket.leave(room);
+    console.log("User left room " + room);
   });
 
   socket.off("setup", () => {

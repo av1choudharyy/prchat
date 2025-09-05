@@ -1,26 +1,40 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
 import "../App.css";
-import {
-  isLastMessage,
-  isSameSender,
-  isSameSenderMargin,
-  isSameUser,
-} from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
+import MessageBubble from "./MessageBubble";
 
-const ScrollableChat = ({ messages, isTyping }) => {
-  const { user } = ChatState();
-
+const ScrollableChat = ({ 
+  messages, 
+  isTyping, 
+  onReply, 
+  filteredMessages = null,
+  highlightedMessageId = null 
+}) => {
   const scrollRef = useRef();
 
+  // Use filtered messages if search is active, otherwise use all messages
+  const displayMessages = filteredMessages || messages;
+
   useEffect(() => {
-    // Scroll to the bottom when messeges render or sender is typing
+    // Scroll to the bottom when messages render or sender is typing
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    // Scroll to highlighted message when search navigation occurs
+    if (highlightedMessageId) {
+      const highlightedElement = document.getElementById(`message-${highlightedMessageId}`);
+      if (highlightedElement) {
+        highlightedElement.scrollIntoView({ 
+          behavior: "smooth", 
+          block: "center" 
+        });
+      }
+    }
+  }, [highlightedMessageId]);
 
   return (
     <>
@@ -29,49 +43,20 @@ const ScrollableChat = ({ messages, isTyping }) => {
         style={{ overflowX: "hidden", overflowY: "auto" }}
       >
         {/* If something inside the messages, render the messages */}
-        {messages &&
-          messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
-              {(isSameSender(messages, message, index, user._id) ||
-                isLastMessage(messages, index, user._id)) && (
-                <Tooltip
-                  label={message.sender.name}
-                  placement="bottom-start"
-                  hasArrow
-                >
-                  <Avatar
-                    mt="7px"
-                    mr="1"
-                    size="sm"
-                    cursor="pointer"
-                    name={message.sender.name}
-                    src={message.sender.pic}
-                  />
-                </Tooltip>
-              )}
-
-              <span
-                style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  maxWidth: "75%",
-
-                  marginLeft: isSameSenderMargin(
-                    messages,
-                    message,
-                    index,
-                    user._id
-                  ),
-                  marginTop: isSameUser(messages, message, index, user._id)
-                    ? 3
-                    : 10,
-                }}
-              >
-                {message.content}
-              </span>
+        {displayMessages &&
+          displayMessages.map((message, index) => (
+            <div 
+              ref={scrollRef} 
+              key={message._id} 
+              id={`message-${message._id}`}
+            >
+              <MessageBubble
+                message={message}
+                messages={displayMessages}
+                index={index}
+                onReply={onReply}
+                isHighlighted={message._id === highlightedMessageId}
+              />
             </div>
           ))}
       </div>
