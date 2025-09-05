@@ -107,12 +107,21 @@ const MyChats = ({ fetchAgain }) => {
                 py={2}
                 borderRadius="lg"
                 key={chat._id}
+                position="relative"
               >
-                <Text>
+                <Text fontWeight="bold">
                   {!chat.isGroupChat
                     ? getSender(loggedUser, chat.users)
                     : chat.chatName}
                 </Text>
+                {chat.latestMessage && (
+                  <Text fontSize="xs" color={selectedChat === chat ? "white" : "gray.500"}>
+                    <b>{chat.latestMessage.sender.name} : </b>
+                    {chat.latestMessage.content.length > 50
+                      ? chat.latestMessage.content.substring(0, 51) + "..."
+                      : chat.latestMessage.content}
+                  </Text>
+                )}
               </Box>
             ))}
           </Stack>

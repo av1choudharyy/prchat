@@ -8,6 +8,7 @@ const {
   removeFromGroup,
 } = require("./chatControllers");
 const { sendMessage, allMessages } = require("./messageControllers");
+const { uploadFiles, downloadFile, previewFile, deleteFile } = require("./fileControllers");
 
 module.exports = {
   registerUser,
@@ -23,4 +24,9 @@ module.exports = {
 
   sendMessage,
   allMessages,
+
+  uploadFiles,
+  downloadFile,
+  previewFile,
+  deleteFile,
 };
