@@ -8,6 +8,8 @@ import {
   Spinner,
   Text,
   useToast,
+  List,
+  ListItem,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -17,7 +19,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5000";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
@@ -28,30 +30,31 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
+  // Reply feature
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  // Search feature
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // 🔮 Suggestions feature
+  const [suggestions, setSuggestions] = useState([]);
+
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
 
   const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
-    if (!selectedChat) {
-      return;
-    }
+    if (!selectedChat) return;
 
     try {
       setLoading(true);
-
       const response = await fetch(`/api/message/${selectedChat._id}`, {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { Authorization: `Bearer ${user.token}` },
       });
       const data = await response.json();
-
       setMessages(data);
       setLoading(false);
-
       socket.emit("join chat", selectedChat._id);
     } catch (error) {
       setLoading(false);
@@ -74,13 +77,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
+    fetchMessages();
     selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
   }, [selectedChat]);
 
   useEffect(() => {
@@ -91,23 +92,28 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+          setFetchAgain(!fetchAgain);
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prev) => [...prev, newMessageRecieved]);
       }
     });
 
-    // eslint-disable-next-line
-  });
+    // ✅ Listen for reaction updates
+    socket.on("message reaction", (updatedMessage) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+    });
+  }, [messages, notification, fetchAgain]);
 
   const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
-
+        setNewMessage("");
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
@@ -117,13 +123,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: newMessage,
             chatId: selectedChat._id,
+            replyTo: replyingTo ? replyingTo._id : null,
           }),
         });
         const data = await response.json();
 
         socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
+        setMessages([...messages, data]);
+        setReplyingTo(null);
+        setSuggestions([]); // clear suggestions
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -139,9 +147,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
 
   const typingHandler = (e) => {
-    setNewMessage(e.target.value);
+    const value = e.target.value;
+    setNewMessage(value);
 
-    // Typing Indicator Logic
+    // Suggestion logic
+    if (value.trim().length > 1) {
+      const matched = messages
+        .map((m) => m.content)
+        .filter((c) => c.toLowerCase().includes(value.toLowerCase()))
+        .slice(0, 5); // limit 5 suggestions
+      setSuggestions(matched);
+    } else {
+      setSuggestions([]);
+    }
+
     if (!socketConnected) return;
 
     if (!typing) {
@@ -151,16 +170,47 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     let lastTypingTime = new Date().getTime();
     let timerLength = 3000;
-
     setTimeout(() => {
       let timeNow = new Date().getTime();
       let timeDiff = timeNow - lastTypingTime;
-
       if (timeDiff >= timerLength && typing) {
         socket.emit("stop typing", selectedChat._id);
         setTyping(false);
       }
     }, timerLength);
+  };
+
+  // ✅ Handle reacting to a message
+  const handleReactMessage = async (messageId, emoji) => {
+    try {
+      const response = await fetch(`/api/message/${messageId}/react`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emoji }),
+      });
+      const updatedMessage = await response.json();
+
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+
+      socket.emit("message reaction", updatedMessage);
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to react to message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
+    }
   };
 
   return (
@@ -199,6 +249,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
           </Text>
 
+          {/* 🔍 Search box */}
+          <Box mb={2}>
+            <Input
+              placeholder="Search messages..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              bg="white"
+            />
+          </Box>
+
           <Box
             display="flex"
             flexDir="column"
@@ -211,13 +271,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             overflowY="hidden"
           >
             {loading ? (
-              <Spinner
-                size="xl"
-                w="20"
-                h="20"
-                alignSelf="center"
-                margin="auto"
-              />
+              <Spinner size="xl" w="20" h="20" alignSelf="center" margin="auto" />
             ) : (
               <div
                 style={{
@@ -227,8 +281,55 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={
+                    searchTerm
+                      ? messages.filter((m) =>
+                          m.content
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase())
+                        )
+                      : messages
+                  }
+                  isTyping={isTyping}
+                  setReplyingTo={setReplyingTo}
+                  searchTerm={searchTerm}
+                  onReactMessage={handleReactMessage} // ✅ Pass down reaction handler
+                />
               </div>
+            )}
+
+            {/* Reply Preview */}
+            {replyingTo && (
+              <Box
+                bg="#f0f0f0"
+                p={2}
+                borderRadius="md"
+                mb={2}
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <div>
+                  <strong>Replying to {replyingTo.sender.name}:</strong>
+                  <div style={{ fontSize: "13px", color: "#555" }}>
+                    {replyingTo.content.length > 50
+                      ? replyingTo.content.substring(0, 50) + "..."
+                      : replyingTo.content}
+                  </div>
+                </div>
+                <button
+                  style={{
+                    marginLeft: "10px",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setReplyingTo(null)}
+                >
+                  ❌
+                </button>
+              </Box>
             )}
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
@@ -240,15 +341,39 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 onChange={(e) => typingHandler(e)}
               />
             </FormControl>
+
+            {/* 🔮 Suggestion Box */}
+            {suggestions.length > 0 && (
+              <Box
+                bg="white"
+                borderRadius="md"
+                mt={1}
+                boxShadow="md"
+                maxH="150px"
+                overflowY="auto"
+                zIndex={1000}
+              >
+                <List spacing={1}>
+                  {suggestions.map((s, idx) => (
+                    <ListItem
+                      key={idx}
+                      p={2}
+                      _hover={{ bg: "gray.100", cursor: "pointer" }}
+                      onClick={() => {
+                        setNewMessage(s);
+                        setSuggestions([]);
+                      }}
+                    >
+                      {s}
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
           </Box>
         </>
       ) : (
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          h="100%"
-        >
+        <Box display="flex" alignItems="center" justifyContent="center" h="100%">
           <Text fontSize="3xl" pb="3" fontFamily="Work sans">
             Click on a user to start chatting
           </Text>

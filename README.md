@@ -10,6 +10,12 @@ A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 - User authentication
 - Typing indicators
 - Message notifications
+Additional features added
+- Copy message
+- Reply to message
+- Search messages (frontend)
+- Suggestions while typing
+- Emoji reaction on chat
 
 ## Tech Stack
 
