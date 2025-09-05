@@ -10,6 +10,12 @@ A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 - User authentication
 - Typing indicators
 - Message notifications
+- **Message Search** - Search text within conversations
+- **Message Actions** - Copy and reply-to-message features  
+- **File Sharing** - Attach and send files/images
+- **Forward Messages** - Forward messages to other chats
+- **Font Styling** - Bold, italic, and font size options
+- **Dark Mode** - Toggle between light and dark themes
 
 ## Tech Stack
 

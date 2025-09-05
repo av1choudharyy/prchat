@@ -28,7 +28,7 @@ const GroupChatModal = ({ children }) => {
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
-  const { user, chats, setChats } = ChatState();
+  const { user, chats, setChats, darkMode } = ChatState();
 
   const handleSearch = async (query) => {
     setSearch(query);
@@ -141,11 +141,11 @@ const GroupChatModal = ({ children }) => {
 
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent bg={darkMode ? "gray.800" : "white"} color={darkMode ? "white" : "black"}>
           <ModalHeader
             display="flex"
             justifyContent="center"
-            fontSize="35px"
+            fontSize="28px"
             fontFamily="Work sans"
           >
             Create Group Chat
@@ -157,13 +157,21 @@ const GroupChatModal = ({ children }) => {
                 placeholder="Chat Name"
                 mb={3}
                 onChange={(e) => setGroupChatName(e.target.value)}
+                bg={darkMode ? "gray.700" : "white"}
+                color={darkMode ? "white" : "black"}
+                borderColor={darkMode ? "gray.600" : "gray.300"}
+                _placeholder={{ color: darkMode ? "gray.400" : "gray.500" }}
               />
             </FormControl>
             <FormControl>
               <Input
-                placeholder="Add Users eg: Rohit, Piyush, Aman"
+                placeholder="Add Users eg: John, Jane, Bob"
                 mb={3}
                 onChange={(e) => handleSearch(e.target.value)}
+                bg={darkMode ? "gray.700" : "white"}
+                color={darkMode ? "white" : "black"}
+                borderColor={darkMode ? "gray.600" : "gray.300"}
+                _placeholder={{ color: darkMode ? "gray.400" : "gray.500" }}
               />
             </FormControl>
 

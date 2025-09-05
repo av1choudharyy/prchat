@@ -1,11 +1,14 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Home, Chat } from "./pages";
+import { ChatState } from "./context/ChatProvider";
 
 import "./App.css";
 
 const App = () => {
+  const { darkMode } = ChatState() || {};
+  
   return (
-    <div className="App">
+    <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/chats" element={<Chat />} />

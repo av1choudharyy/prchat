@@ -8,6 +8,7 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerOverlay,
+  IconButton,
   Input,
   Menu,
   MenuButton,
@@ -20,7 +21,7 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
+import { BellIcon, ChevronDownIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -44,6 +45,8 @@ const SideDrawer = () => {
     setChats,
     notification,
     setNotification,
+    darkMode,
+    setDarkMode,
   } = ChatState();
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -136,10 +139,11 @@ const SideDrawer = () => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={darkMode ? "gray.800" : "white"}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
+        borderColor={darkMode ? "gray.600" : "gray.200"}
       >
         {/* Search User Section */}
         <Tooltip label="Search users to chat" hasArrow placement="bottom-end">
@@ -152,12 +156,20 @@ const SideDrawer = () => {
         </Tooltip>
 
         {/* App Name Section */}
-        <Text fontSize="2xl" fontFamily="Work sans">
+        <Text fontSize="2xl" fontFamily="Work sans" color={darkMode ? "white" : "black"}>
           PRChat
         </Text>
 
         {/* User Profile and Bell Icon Section */}
         <div>
+          <IconButton 
+            icon={darkMode ? <SunIcon /> : <MoonIcon />} 
+            onClick={() => setDarkMode(!darkMode)}
+            variant="ghost"
+            color={darkMode ? "yellow.400" : "gray.600"}
+            _hover={{ bg: darkMode ? "gray.600" : "gray.100" }}
+            mr={2}
+          />
           <Menu>
             <MenuButton p="1" className="notification-badge-container">
               <BellIcon fontSize="2xl" m="1" />
@@ -169,8 +181,12 @@ const SideDrawer = () => {
               )}
             </MenuButton>
 
-            <MenuList>
-              {!notification.length && <Text pl="2">No New Messages</Text>}
+            <MenuList bg={darkMode ? "gray.700" : "white"}>
+              {!notification.length && (
+                <Text pl="2" color={darkMode ? "white" : "black"}>
+                  No New Messages
+                </Text>
+              )}
               {notification.map((notif) => (
                 <MenuItem
                   key={notif._id}
@@ -178,6 +194,9 @@ const SideDrawer = () => {
                     setSelectedChat(notif.chat[0]);
                     setNotification(notification.filter((n) => n !== notif));
                   }}
+                  bg={darkMode ? "gray.700" : "white"}
+                  color={darkMode ? "white" : "black"}
+                  _hover={{ bg: darkMode ? "gray.600" : "gray.50" }}
                 >
                   {notif.chat.isGroupChat
                     ? `New Message in ${notif.chat[0].chatName}`
@@ -185,7 +204,6 @@ const SideDrawer = () => {
                         user,
                         notif.chat[0].users
                       )}`}
-                  {/* Change chat[0] to chat from server side */}
                 </MenuItem>
               ))}
             </MenuList>
@@ -201,13 +219,26 @@ const SideDrawer = () => {
               />
             </MenuButton>
 
-            <MenuList>
+            <MenuList bg={darkMode ? "gray.700" : "white"}>
               <ProfileModal user={user}>
-                <MenuItem>My Profile</MenuItem>
+                <MenuItem 
+                  bg={darkMode ? "gray.700" : "white"}
+                  color={darkMode ? "white" : "black"}
+                  _hover={{ bg: darkMode ? "gray.600" : "gray.50" }}
+                >
+                  My Profile
+                </MenuItem>
               </ProfileModal>
 
               <MenuDivider />
-              <MenuItem onClick={logoutHandler}>Logout</MenuItem>
+              <MenuItem 
+                onClick={logoutHandler}
+                bg={darkMode ? "gray.700" : "white"}
+                color={darkMode ? "white" : "black"}
+                _hover={{ bg: darkMode ? "gray.600" : "gray.50" }}
+              >
+                Logout
+              </MenuItem>
             </MenuList>
           </Menu>
         </div>
@@ -215,9 +246,9 @@ const SideDrawer = () => {
 
       <Drawer placement="left" isOpen={isOpen} onClose={onClose}>
         <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader>Search Users</DrawerHeader>
+        <DrawerContent bg={darkMode ? "gray.800" : "white"}>
+          <DrawerCloseButton color={darkMode ? "white" : "black"} />
+          <DrawerHeader color={darkMode ? "white" : "black"}>Search Users</DrawerHeader>
 
           <DrawerBody>
             {/* Search User */}
@@ -227,8 +258,12 @@ const SideDrawer = () => {
                 mr="2"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                bg={darkMode ? "gray.700" : "white"}
+                color={darkMode ? "white" : "black"}
+                borderColor={darkMode ? "gray.600" : "gray.300"}
+                _placeholder={{ color: darkMode ? "gray.400" : "gray.500" }}
               />
-              <Button onClick={handleSearch}>Go</Button>
+              <Button onClick={handleSearch} colorScheme="blue">Go</Button>
             </Box>
 
             {/* Polulate Search Results */}
