@@ -13,7 +13,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping, setReplyingTo }) => {
+const ScrollableChat = ({ messages, isTyping, setReplyingTo, searchTerm }) => {
   const { user } = ChatState();
   const scrollRef = useRef();
 
@@ -24,6 +24,24 @@ const ScrollableChat = ({ messages, isTyping, setReplyingTo }) => {
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
+  };
+
+  // 🔍 Highlight matched search term
+  const highlightText = (text, term) => {
+    if (!term) return text;
+
+    const regex = new RegExp(`(${term})`, "gi");
+    const parts = text.split(regex);
+
+    return parts.map((part, idx) =>
+      part.toLowerCase() === term.toLowerCase() ? (
+        <span key={idx} style={{ backgroundColor: "yellow" }}>
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
   };
 
   return (
@@ -97,7 +115,8 @@ const ScrollableChat = ({ messages, isTyping, setReplyingTo }) => {
                   </div>
                 )}
 
-                {message.content}
+                {/* 🔍 Highlight search matches */}
+                {highlightText(message.content, searchTerm)}
               </div>
 
               {/* Copy Button */}
