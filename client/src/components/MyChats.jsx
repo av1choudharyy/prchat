@@ -11,7 +11,7 @@ import { AddIcon } from "@chakra-ui/icons";
 
 import { ChatState } from "../context/ChatProvider";
 import ChatLoading from "./ChatLoading";
-import { getSender } from "../config/ChatLogics";
+import { getSender, formatTimestamp } from "../config/ChatLogics";
 import GroupChatModal from "./miscellaneous/GroupChatModal";
 
 const MyChats = ({ fetchAgain }) => {
@@ -108,11 +108,38 @@ const MyChats = ({ fetchAgain }) => {
                 borderRadius="lg"
                 key={chat._id}
               >
-                <Text>
-                  {!chat.isGroupChat
-                    ? getSender(loggedUser, chat.users)
-                    : chat.chatName}
-                </Text>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  w="100%"
+                >
+                  {/* Chat Name (Left) */}
+                  <Text fontWeight="medium" fontSize="md" noOfLines={1}>
+                    {!chat?.isGroupChat
+                      ? getSender(loggedUser, chat?.users)
+                      : chat?.chatName}
+                  </Text>
+
+                  {/* Date/Time (Right) */}
+                  {chat.latestMessage && <Text fontSize="sm" color="gray.500">
+                    {formatTimestamp(chat.latestMessage.createdAt)}
+                  </Text>}
+                </Box>
+                {chat?.latestMessage && <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="flex-start"
+                  w="100%"
+                  py={1}
+                  bg="transparent"
+                >
+                  <Text fontSize="sm" color="gray.600" noOfLines={1}>
+                    {chat?.isGroupChat
+                      ? `${chat.latestMessage?.sender?.name}: ${chat.latestMessage?.content}`
+                      : chat.latestMessage?.content}
+                  </Text>
+                </Box>}
               </Box>
             ))}
           </Stack>

@@ -28,6 +28,13 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - prchat-network
+    command: >
+      sh -c "
+        /bin/ollama serve & 
+        sleep 5 && 
+        ollama pull tinyllama && 
+        wait
+      "
 
   backend:
     build:

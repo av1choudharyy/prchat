@@ -78,8 +78,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if ((e.key === "Enter" && newMessage) || quickText) {
       socket.emit("stop typing", selectedChat._id);
+      const messageToSend = quickText || newMessage;
+      const isAiInteraction = /@prai\b/i.test(messageToSend) ? true : false;
       try {
-        const messageToSend = quickText || newMessage;
         setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
 
         const response = await fetch("/api/message", {
@@ -91,7 +92,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: messageToSend,
             chatId: selectedChat._id,
-            isAiInteraction: /@prai\b/i.test(messageToSend) ? true : false,
           }),
         });
         const data = await response.json();
@@ -99,6 +99,27 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         socket.emit("new message", data);
         setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
+
+        if (isAiInteraction) {
+          const response = await fetch("/api/message", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${user.token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              content: messageToSend,
+              chatId: selectedChat._id,
+              isAiInteraction: true,
+            }),
+          });
+
+          const data = await response.json();
+
+          socket.emit("new message", data);
+          setNewMessage("");
+          setMessages([...messages, data]); // Add new message with existing messages
+        }
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -112,6 +133,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       }
     }
   };
+
 
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
@@ -200,14 +222,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               icon={<ArrowBackIcon />}
               onClick={() => setSelectedChat("")}
             />
-            {!selectedChat.isGroupChat ? (
-              <>
-                {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
-              </>
+            {!selectedChat?.isGroupChat ? (
+              <Box display="flex" justifyContent="space-between" width='100%'>
+                {getSender(user, selectedChat?.users)}
+                <Box display='flex'>
+                  <ChatSearch
+                    messages={messages}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    onScrollToMessage={scrollToMessage}
+                    setSelectedMessageIndex={setSelectedMessageIndex}
+                  />
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                </Box>
+              </Box>
             ) : (
               <>
-                {selectedChat.chatName.toUpperCase()}
+                {selectedChat?.chatName.toUpperCase()}
                 <Box style={{ display: "flex" }}>
                   <ChatSearch
                     messages={messages}

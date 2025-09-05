@@ -51,6 +51,15 @@ db.users.insertMany([
     isAdmin: false,
     createdAt: new Date(),
     updatedAt: new Date()
+  },
+  {
+    name: 'PRAI',
+    email: 'prai@example.com',
+    password: hashedPassword,
+    pic: 'https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg',
+    isAdmin: false,
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
 ]);
 

@@ -17,6 +17,51 @@ const sendMessage = async (req, res) => {
   }
 
   try {
+
+    //AI interaction
+    if (isAiInteraction) {
+      const prompt = content.replace("@prai", "").trim();
+
+      const aiResponse = await fetch(`${process.env.OLLAMA_API_URL}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "tinyllama",
+          prompt,
+          stream: false,
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error("Ollama error:", errorText);
+        return res.status(400).json({ error: errorText });
+      }
+
+      const data = await aiResponse.json();
+
+      // Create a new message
+      let message = await Message.create({
+        sender: req.user._id, // Loggedin user
+        content: "Response for " + req.user.name + " from AI : " + data.response,
+        chat: chatId,
+      });
+
+      message = await (
+        await message.populate("sender", "name pic")
+      ).populate({
+        path: "chat",
+        select: "chatName isGroupChat users",
+        model: "Chat",
+        populate: { path: "users", select: "name email pic", model: "User" },
+      });
+
+      // Update latest message
+      await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+
+      return res.status(201).json(message);
+    }
+
     // Create a new message
     let message = await Message.create({
       sender: req.user._id, // Logged in user id,
@@ -35,40 +80,7 @@ const sendMessage = async (req, res) => {
 
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
-
-    // if (isAiInteraction) {
-    //   console.log("inside ai interaction");
-    //   const prompt = content.replace("@prai", "").trim();
-
-    //   const aiResponse = await fetch(`${process.env.OLLAMA_API_URL}/api/generate`, {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({
-    //       model: "tinyllama",
-    //       prompt,
-    //       stream: false,
-    //     }),
-    //   });
-
-    //   // if (!aiResponse.ok) {
-    //   //   const errorText = await aiResponse.text();
-    //   //   console.error("Ollama error:", errorText);
-    //   //   return res.status(400).json({ error: errorText });
-    //   // }
-
-    //   const data = await aiResponse.json();
-    //   console.log("aiResponse", data);
-
-    //   // const aiMessage = await Message.create({
-    //   //   sender: null, // or a system user id for AI
-    //   //   content: data.response,
-    //   //   chat: chatId,
-    //   // });
-
-    //   return res.status(201).json(data);
-    // }
-
-    // console.log("response in sendMessage", json(message));
+    
     return res.status(201).json(message);
   } catch (error) {
     // console.error("sendMessage error:", error);
@@ -113,6 +125,9 @@ const forwardMessage = async (req, res) => {
         populate: { path: "users", select: "name email pic", model: "User" },
       });
 
+      // Update latest message
+      await Chat.findByIdAndUpdate(ids, { latestMessage: message });
+
     })
 
     return res.status(201).json("message forwarded"); // Send message we just created now
@@ -145,4 +160,43 @@ const allMessages = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages, forwardMessage };
+const fileMessage = async (req, res) => {
+  try {
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const file = req.files.file;
+    const filePath = `uploads/${Date.now()}-${file.name}`;
+
+    // Move file to uploads folder
+    await file.mv(filePath);
+
+    const messageData = {
+      sender: req.user._id,
+      content: filePath,
+      chat: req.body.chatId,
+      isFile: true,
+      fileType: file.mimetype,
+    };
+
+    let message = await Message.create(messageData);
+
+    message = await message
+      .populate("sender", "name pic")
+      .populate({
+        path: "chat",
+        select: "chatName isGroupChat users",
+        model: "Chat",
+        populate: { path: "users", select: "name email pic", model: "User" },
+      });
+
+    await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+
+    res.json(message);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { sendMessage, allMessages, forwardMessage, fileMessage };

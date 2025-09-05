@@ -1,6 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
+// const fileUpload = require("express-fileupload");
 
 const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
@@ -8,6 +9,7 @@ const { notFound, errorHandler } = require("./middleware");
 
 const app = express(); // Use express js in our app
 app.use(express.json()); // Accept JSON data
+// app.use(fileUpload());
 dotenv.config({ path: path.join(__dirname, "./.env") }); // Specify a custom path if your file containing environment variables is located elsewhere
 connectToMongoDB(); // Connect to Database
 
@@ -65,16 +67,32 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+  // 🛑 Ignore invalid/AI responses that aren’t message objects
+  if (
+    !newMessageRecieved ||
+    typeof newMessageRecieved !== "object" ||
+    !newMessageRecieved.chat
+  ) {
+    console.log("Invalid message received:", newMessageRecieved);
+    return;
+  }
 
-    if (!chat.users) return console.log("chat.users not defined");
+  // In your case chat is an array → use [0]
+  const chat = Array.isArray(newMessageRecieved.chat)
+    ? newMessageRecieved.chat[0]
+    : newMessageRecieved.chat;
 
-    chat.users.forEach((user) => {
-      if (user._id === newMessageRecieved.sender._id) return;
+  if (!chat?.users) {
+    console.log("chat.users not defined");
+    return;
+  }
 
-      socket.in(user._id).emit("message recieved", newMessageRecieved);
-    });
+  chat.users.forEach((user) => {
+    if (user._id === newMessageRecieved?.sender?._id) return;
+    socket.in(user._id).emit("message recieved", newMessageRecieved);
   });
+});
+
 
   socket.off("setup", () => {
     console.log("User Disconnected");
