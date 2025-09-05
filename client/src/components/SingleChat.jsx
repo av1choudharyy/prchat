@@ -7,7 +7,7 @@ import { FiTrash2 } from "react-icons/fi"; // Delete
 import { MdPushPin, MdOutlinePushPin } from "react-icons/md"; // Pin
 import { useEffect, useState } from "react";
 import { FiSearch } from "react-icons/fi";
-import { ArrowBackIcon, ViewIcon} from "@chakra-ui/icons";
+import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
@@ -104,18 +104,27 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
-      if (
-        !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat._id
-      ) {
-        if (!notification.includes(newMessageRecieved)) {
-          setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
-        }
-      } else {
-        setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
-      }
-    });
+  // If message belongs to a different chat, keep notifications logic
+  if (
+    !selectedChatCompare ||
+    selectedChatCompare._id !== newMessageRecieved.chat._id
+  ) {
+    // avoid duplicate notifications by id
+    if (!notification.some((n) => n._id === newMessageRecieved._id)) {
+      setNotification([newMessageRecieved, ...notification]);
+      setFetchAgain((f) => !f); // safer toggle
+    }
+    return;
+  }
+
+  // If message belongs to the current chat, append only if not exists
+  setMessages((prevMessages) => {
+    if (prevMessages.some((m) => m._id === newMessageRecieved._id)) {
+      return prevMessages; // already present — ignore duplicate
+    }
+    return [...prevMessages, newMessageRecieved];
+  });
+});
 
 return () => {
     socket.off("message recieved");
@@ -166,7 +175,12 @@ useEffect(() => {
 
         socket.emit("new message", data);
         setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
+        setMessages((prev) => {
+  // If socket will also deliver this message, don't duplicate
+  if (prev.some((m) => m._id === data._id)) return prev;
+  return [...prev, data];
+});
+
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -233,7 +247,7 @@ useEffect(() => {
 
     // broadcast via socket and update UI
     socket.emit("new message", data);
-    setMessages((prev) => [...prev, data]);
+   setMessages((prev) => (prev.some(m => m._id === data._id) ? prev : [...prev, data]));
   } catch (e) {
     toast({
       title: "Failed to send",
@@ -575,7 +589,7 @@ const handleSearch = async () => {
             method: "PUT",
             headers: { Authorization: `Bearer ${user.token}` },
           });
-          const updated = await res.json();
+          await res.json();
           setMessages(prev => prev.map(m => ({ ...m, pinned: false })));
           socket.emit("pin updated", { chatId: selectedChat._id, message: null });
         }}
@@ -628,10 +642,17 @@ const handleSearch = async () => {
           borderBottom="1px solid #eee"
           _hover={{ bg: "#f7f7f7", cursor: "pointer" }}
           onClick={() => {
-            // optional future: scroll to message
-            setSearchResults([]);
-            setShowSearch(false);
-          }}
+  const el = document.getElementById(msg._id);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.style.backgroundColor = "#ffeaa7"; // temporary highlight
+    setTimeout(() => (el.style.backgroundColor = ""), 1600);
+  }
+  setShowSearch(false);
+  setSearchResults([]);
+  setSearchTerm("");
+}}
+
         >
           <Text fontSize="xs" color="gray.600">
             {msg.sender?.name}
