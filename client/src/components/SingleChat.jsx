@@ -185,6 +185,7 @@ const onReact = async (messageId, emoji) => {
   }
 };
 
+
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
     if (!socketConnected) return;
