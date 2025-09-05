@@ -25,7 +25,7 @@ import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SunIcon, MoonIcon } from "@chakra-ui/icons";
-
+import { HStack, Switch, FormLabel } from "@chakra-ui/react";
 import { ChatState } from "../../context/ChatProvider";
 import ProfileModal from "./ProfileModal";
 import ChatLoading from "../ChatLoading";
@@ -33,7 +33,7 @@ import UserListItem from "../UserAvatar/UserListItem";
 import { getSender } from "../../config/ChatLogics";
 import "../../App.css";
 
-const SideDrawer = ({colorMode , toggleColorMode}) => {
+const SideDrawer = ({ colorMode, toggleColorMode }) => {
   const [search, setSearch] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -159,18 +159,34 @@ const SideDrawer = ({colorMode , toggleColorMode}) => {
         </Text>
 
         {/* User Profile and Bell Icon Section */}
-        <div style={{display:"flex",alignItems:"center"}}>
-           <Menu>
-             <Box display="flex" justifyContent="flex-end" p={2}>
-        <IconButton
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <Menu>
+            <Box display="flex" justifyContent="flex-end" p={2}>
+              {/* <IconButton
           aria-label="Toggle dark mode"
           onClick={toggleColorMode}
           icon={colorMode === "dark" ? <SunIcon color="yellow.400" /> : <MoonIcon color="gray.700" />}
           variant="ghost"
           color={colorMode === "dark" ? "yellow.400" : "gray.700"}
-        />
-      </Box>
-           </Menu>
+        /> */}
+              <HStack spacing={3} align="center" p={2}>
+                <FormLabel
+                  htmlFor="dark-mode"
+                  mb="0"
+                  fontSize="sm"
+                  color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+                >
+                  {colorMode === "dark" ? "Dark" : "Light"}
+                </FormLabel>
+                <Switch
+                  id="dark-mode"
+                  colorScheme="yellow"
+                  isChecked={colorMode === "dark"}
+                  onChange={toggleColorMode}
+                />
+              </HStack>
+            </Box>
+          </Menu>
           <Menu>
             <MenuButton p="1" className="notification-badge-container">
               <BellIcon
@@ -202,14 +218,20 @@ const SideDrawer = ({colorMode , toggleColorMode}) => {
                         user,
                         notif.chat[0].users
                       )}`}
-                  {/* Change chat[0] to chat from server side */}
                 </MenuItem>
               ))}
             </MenuList>
           </Menu>
 
           <Menu>
-            <MenuButton as={Button} rightIcon={<ChevronDownIcon color={colorMode === "dark" ? "yellow.300" : "gray.700"} />}>
+            <MenuButton
+              as={Button}
+              rightIcon={
+                <ChevronDownIcon
+                  color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+                />
+              }
+            >
               <Avatar
                 name={user.name}
                 size="sm"

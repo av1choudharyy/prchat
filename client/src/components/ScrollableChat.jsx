@@ -3,12 +3,6 @@ import { Avatar, Tooltip, useColorMode } from "@chakra-ui/react";
 import Lottie from "lottie-react";
 
 import "../App.css";
-import {
-  isLastMessage,
-  isSameSender,
-  isSameSenderMargin,
-  isSameUser,
-} from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
@@ -21,19 +15,27 @@ const ScrollableChat = ({
   setCurrentMatch = () => {},
   onCopyMessage = () => {},
   onReplyMessage = () => {},
-  onForwardMessage = () => {},
-  onEmojiMessage = () => {},
 }) => {
   const { user } = ChatState();
   const { colorMode } = useColorMode();
   const matchRefs = useRef([]);
   const scrollRef = useRef();
-  const [emojiReactions, setEmojiReactions] = React.useState({}); // { messageId: [emoji, ...] }
+  const [emojiReactions, setEmojiReactions] = React.useState({});
   const [showEmojiPickerFor, setShowEmojiPickerFor] = React.useState(null);
-  const emojiList = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🙏", "👏", "😎"];
+  const emojiList = [
+    "👍",
+    "❤️",
+    "😂",
+    "😮",
+    "😢",
+    "😡",
+    "🎉",
+    "🙏",
+    "👏",
+    "😎",
+  ];
 
   useEffect(() => {
-    // Scroll to the bottom when messeges render or sender is typing
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
@@ -73,22 +75,23 @@ const ScrollableChat = ({
   };
 
   const handleAddEmoji = (messageId, emoji) => {
-    setEmojiReactions(prev => ({
+    setEmojiReactions((prev) => ({
       ...prev,
-      [messageId]: prev[messageId] ? [...prev[messageId], emoji] : [emoji]
+      [messageId]: prev[messageId] ? [...prev[messageId], emoji] : [emoji],
     }));
     setShowEmojiPickerFor(null);
   };
 
-  // Teams-style message bubble with hover actions
   return (
     <>
       <div
+        key={colorMode}
         className="hide-scrollbar"
         style={{
           overflowX: "hidden",
           overflowY: "auto",
           position: "relative",
+          height: "100%",
           padding: "30px 5px 10px 5px",
           background: colorMode === "dark" ? "gray.900" : "white",
         }}
@@ -103,9 +106,7 @@ const ScrollableChat = ({
             return (
               <div
                 ref={
-                  isMatch
-                    ? el => (matchRefs.current[index] = el)
-                    : scrollRef
+                  isMatch ? (el) => (matchRefs.current[index] = el) : scrollRef
                 }
                 key={message._id}
                 style={{
@@ -120,9 +121,12 @@ const ScrollableChat = ({
                 }}
                 className="teams-message-row"
               >
-                {/* Avatar for other user, Teams style */}
                 {!isOwn && (
-                  <Tooltip label={message.sender.name} placement="bottom-start" hasArrow>
+                  <Tooltip
+                    label={message.sender.name}
+                    placement="bottom-start"
+                    hasArrow
+                  >
                     <Avatar
                       mt="7px"
                       mr="1"
@@ -155,10 +159,128 @@ const ScrollableChat = ({
                   }}
                   className="teams-message-bubble"
                 >
-                  {highlightText(message.content, searchValue)}
-                  {/* Emoji reactions below message */}
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: colorMode === "dark" ? "gray.400" : "gray.600",
+                      marginTop: "4px",
+                      marginLeft: "auto", // shift for alignment with avatar
+                      textAlign: isOwn ? "right" : "left",
+                    }}
+                  >
+                    {new Date(message.createdAt).toLocaleString([], {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </div>
+                  {/* ✅ Reply Preview */}
+                  {message.replyTo && (
+                    <div
+                      style={{
+                        borderLeft: "3px solid #3182ce",
+                        paddingLeft: "8px",
+                        marginBottom: "6px",
+                        fontSize: "14px",
+                        color: colorMode === "dark" ? "gray.300" : "gray.700",
+                        background:
+                          colorMode === "dark"
+                            ? "rgba(255,255,255,0.06)"
+                            : "#f1f5f9",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        // ✅ scroll to original message if exists
+                        const originalIndex = messages.findIndex(
+                          (m) => m._id === message.replyTo._id
+                        );
+                        if (
+                          originalIndex !== -1 &&
+                          matchRefs.current[originalIndex]
+                        ) {
+                          matchRefs.current[originalIndex].scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                        }
+                      }}
+                    >
+                      <strong>
+                        {message.replyTo.sender?.name || "Unknown"}
+                      </strong>
+                      <div
+                        style={{
+                          fontStyle: "italic",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {message.replyTo.content
+                          ? message.replyTo.content.length > 50
+                            ? message.replyTo.content.substring(0, 50) + "…"
+                            : message.replyTo.content
+                          : message.replyTo.file
+                          ? "📎 File/Media"
+                          : ""}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ✅ Text */}
+                  {message.content &&
+                    highlightText(message.content, searchValue)}
+
+                  {/* ✅ Image file */}
+                  {message.file &&
+                    (message.fileType === "image" ||
+                      /\.(png|jpg|jpeg|gif)$/i.test(message.file)) && (
+                      <div style={{ marginTop: "8px" }}>
+                        <img
+                          src={message.file}
+                          alt="uploaded"
+                          style={{
+                            maxWidth: "250px",
+                            maxHeight: "200px",
+                            borderRadius: "12px",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => window.open(message.file, "_blank")}
+                        />
+                      </div>
+                    )}
+
+                  {/* ✅ Other files */}
+                  {message.file &&
+                    message.fileType !== "image" &&
+                    !/\.(png|jpg|jpeg|gif)$/i.test(message.file) && (
+                      <div style={{ marginTop: "8px" }}>
+                        <a
+                          href={message.file}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "#3182ce",
+                            fontWeight: "bold",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          File
+                        </a>
+                      </div>
+                    )}
+
+                  {/* ✅ Emoji reactions */}
                   {emojiReactions[message._id] && (
-                    <div style={{ display: "flex", gap: "4px", marginTop: "6px" ,position: "relative"}}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "4px",
+                        marginTop: "6px",
+                        position: "relative",
+                      }}
+                    >
                       {emojiReactions[message._id].map((emoji, idx) => (
                         <span
                           key={idx}
@@ -166,12 +288,9 @@ const ScrollableChat = ({
                             fontSize: "22px",
                             position: "absolute",
                             bottom: "-10px",
-                            right: '-35px',
-                            top:'-20px',
-                            // background: "#f1f1f1",
-                            // borderRadius: "12px",
+                            right: "-35px",
+                            top: "-20px",
                             padding: "2px 6px",
-                            // border: "1px solid #e2e8f0",
                           }}
                         >
                           {emoji}
@@ -179,12 +298,13 @@ const ScrollableChat = ({
                       ))}
                     </div>
                   )}
-                  {/* Hover actions: clipboard, reply, forward, emoji */}
+
+                  {/* ✅ Hover actions */}
                   <span
                     style={{
                       position: "absolute",
-                      left: isOwn ? "-150px" : undefined,
-                      right: !isOwn ? "-150px" : undefined,
+                      left: isOwn ? "-110px" : undefined,
+                      right: !isOwn ? "-110px" : undefined,
                       top: "-5%",
                       transform: "translateY(-50%)",
                       display: "none",
@@ -211,7 +331,17 @@ const ScrollableChat = ({
                       aria-label="Copy"
                       onClick={() => onCopyMessage(message)}
                     >
-                      <span role="img" aria-label="Copy">📋</span>
+                      <span role="img" aria-label="Copy">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 26 26"
+                          fill="currentColor"
+                        >
+                          <path d="M17 2H7a2 2 0 0 0-2 2v15h2V4h10V2zm4 4H11a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm0 18H11V8h10v16z" />
+                        </svg>
+                      </span>
                     </button>
                     <button
                       style={{
@@ -226,8 +356,24 @@ const ScrollableChat = ({
                       aria-label="Reply"
                       onClick={() => onReplyMessage(message)}
                     >
-                      <span role="img" aria-label="Reply">↩️</span>
+                      <span role="img" aria-label="Reply">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="9 17 4 12 9 7"></polyline>
+                          <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                        </svg>
+                      </span>
                     </button>
+
                     <button
                       style={{
                         background: "none",
@@ -236,35 +382,22 @@ const ScrollableChat = ({
                         fontSize: "20px",
                         color: "#3182ce",
                         padding: "2px",
-                      }}
-                      title="Forward"
-                      aria-label="Forward"
-                      onClick={() => onForwardMessage(message)}
-                    >
-                      <span role="img" aria-label="Forward">➡️</span>
-                    </button>
-                    <button
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "20px",
-                        color: "#3182ce",
-                        padding: "2px",
-                        position: "relative"
+                        position: "relative",
                       }}
                       title="Emoji"
                       aria-label="Emoji"
                       onClick={() => setShowEmojiPickerFor(message._id)}
                     >
-                      <span role="img" aria-label="Emoji">😃</span>
-                      {/* Emoji picker dropdown for this message */}
+                      <span role="img" aria-label="Emoji">
+                        😃
+                      </span>
                       {showEmojiPickerFor === message._id && (
                         <div
                           style={{
                             position: "absolute",
-                            top: "28px",
-                            left: 0,
+                            top: "40px",
+                            left: isOwn?"-250px":undefined,
+
                             background: "#fff",
                             border: "1px solid #ccc",
                             borderRadius: 6,
@@ -294,7 +427,7 @@ const ScrollableChat = ({
                     </button>
                   </span>
                 </span>
-                {/* Avatar for self, Teams style */}
+
                 {isOwn && (
                   <Avatar
                     mt="7px"
@@ -316,13 +449,13 @@ const ScrollableChat = ({
             );
           })}
       </div>
+
       {isTyping ? (
         <div style={{ width: "70px", marginTop: "5px" }}>
           <Lottie animationData={typingAnimation} loop={true} />
         </div>
-      ) : (
-        <></>
-      )}
+      ) : null}
+
       {searchValue && matchIndexes.length > 0 && (
         <div
           style={{

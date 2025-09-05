@@ -243,17 +243,21 @@ const UpdateGroupChatModal = ({
             position: "relative",
           }}
         >
-          <input
-            style={{
-              flex: 1,
-              borderRadius: 4,
-              border: "1px solid #ccc",
-              fontSize: "1rem",
-              padding: "4px 4px",
-            }}
+          <Input
             placeholder="Search messages..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
+            flex="1"
+            borderRadius="4px"
+            border="1px solid"
+            borderColor={colorMode == "dark" ? "whiteAlpha.300" : "gray.300"}
+            fontSize="1rem"
+            color={colorMode == "dark" ? "white" : "gray.700"}
+            bg="transparent"
+            px="4px"
+            _placeholder={{
+              color: colorMode == "dark" ? "whiteAlpha.800" : "gray.500",
+            }} // 👈 works
           />
           <IconButton
             icon={<CloseIcon />}
@@ -307,6 +311,7 @@ const UpdateGroupChatModal = ({
               fontSize: "13px",
               background: "#eee",
               borderRadius: "3px",
+              color: colorMode === "dark" ? "#222" : "#555",
               padding: "0 8px",
             }}
           >
@@ -336,12 +341,16 @@ const UpdateGroupChatModal = ({
           <Tooltip label="Search messages" hasArrow>
             <IconButton
               display={{ base: "flex" }}
-              icon={<Search2Icon color={colorMode === "dark" ? "yellow.300" : "gray.700"} />}
+              icon={
+                <Search2Icon
+                  color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+                />
+              }
               onClick={() => setShowSearchBar(true)}
               mr={2}
               aria-label="Search"
               bg={colorMode === "dark" ? "gray.700" : "white"}
-              color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+              // color={colorMode === "dark" ? "yellow.300" : "gray.700"}
               _hover={{ bg: colorMode === "dark" ? "gray.600" : "gray.100" }}
             />
           </Tooltip>
@@ -349,7 +358,11 @@ const UpdateGroupChatModal = ({
         <Tooltip label="View/Edit group" hasArrow>
           <IconButton
             display={{ base: "flex" }}
-            icon={<ViewIcon color={colorMode === "dark" ? "yellow.300" : "gray.700"} />}
+            icon={
+              <ViewIcon
+                color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+              />
+            }
             onClick={onOpen}
             aria-label="Edit"
             bg={colorMode === "dark" ? "gray.700" : "white"}
@@ -359,7 +372,17 @@ const UpdateGroupChatModal = ({
         </Tooltip>
         <Tooltip label="Close" hasArrow>
           <IconButton
-            icon={<span style={{ fontSize: "20px", fontWeight: "bold", color: colorMode === "dark" ? "#FFD700" : "#222" }}>x</span>}
+            icon={
+              <span
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: colorMode === "dark" ? "#FFD700" : "#222",
+                }}
+              >
+                x
+              </span>
+            }
             variant="ghost"
             aria-label="Close"
             onClick={() => {
@@ -368,7 +391,9 @@ const UpdateGroupChatModal = ({
             }}
             background={colorMode === "dark" ? "red.600" : "red"}
             ml={2}
-            _hover={{ background: colorMode === "dark" ? "red.700" : "red.400" }}
+            _hover={{
+              background: colorMode === "dark" ? "red.700" : "red.400",
+            }}
           />
         </Tooltip>
       </div>
@@ -387,7 +412,9 @@ const UpdateGroupChatModal = ({
           >
             {selectedChat.chatName}
           </ModalHeader>
-          <ModalCloseButton color={colorMode === "dark" ? "yellow.300" : "gray.700"} />
+          <ModalCloseButton
+            color={colorMode === "dark" ? "yellow.300" : "gray.700"}
+          />
           <ModalBody>
             <Box
               w="100%"

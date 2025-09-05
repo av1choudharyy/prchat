@@ -21,7 +21,7 @@ import ScrollableChat from "./ScrollableChat";
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
 
-const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
+const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,14 +35,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
   const [replyTo, setReplyTo] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showEmojiBar, setShowEmojiBar] = useState(false);
   const fileInputRef = useRef();
   const imageInputRef = useRef();
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
-  const { colorMode: chakraColorMode } = useColorMode();
+  const { colorMode } = useColorMode();
 
   const fetchMessages = async () => {
     // If no chat is selected, don't do anything
@@ -79,6 +78,30 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
     }
   };
 
+  const emojiPickerRef = useRef(null); // 👈 ref for emoji dropdown
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    }
+
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
   useEffect(() => {
     socket = io(ENDPOINT);
     socket.emit("setup", user);
@@ -94,6 +117,31 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
+
+  // Add ref for file options dropdown
+  const fileOptionsRef = useRef(null);
+
+  // Close file options on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        fileOptionsRef.current &&
+        !fileOptionsRef.current.contains(event.target)
+      ) {
+        setShowFileOptions(false);
+      }
+    }
+
+    if (showFileOptions) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showFileOptions]);
 
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
@@ -112,13 +160,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
 
     // eslint-disable-next-line
   });
-
   const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        const messageContent = newMessage;
+        setNewMessage("");
 
         const response = await fetch("/api/message", {
           method: "POST",
@@ -127,15 +174,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            content: newMessage,
+            content: messageContent,
             chatId: selectedChat._id,
+            replyTo: replyTo ? replyTo._id : null, // ✅ include replyTo if set
           }),
         });
+
         const data = await response.json();
 
         socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
+        setMessages([...messages, data]);
+
+        // ✅ Clear reply/forward after sending
+        setReplyTo(null);
+        setForwardMessage(null);
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -185,7 +237,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
             ? i
             : null
         )
-        .filter(i => i !== null);
+        .filter((i) => i !== null);
       setMatchIndexes(indexes);
       setCurrentMatch(0);
     } else {
@@ -194,42 +246,48 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
     }
   }, [searchValue, messages]);
 
-  // Handle file/image upload using the same /api/message endpoint
-  // const handleFileUpload = async (event, type) => {
-  //   const file = event.target.files[0];
-  //   if (!file) return;
-  //   try {
-  //     const formData = new FormData();
-  //     formData.append("chatId", selectedChat._id);
-  //     formData.append("content", ""); // or file.name if you want to show filename
-  //     formData.append("file", file);
-  //     formData.append("type", type); // 'file' or 'image'
+  // Handle file/image upload
+  const handleFileUpload = async (event, type) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  //     const response = await fetch("/api/message", {
-  //       method: "POST",
-  //       headers: {
-  //         Authorization: `Bearer ${user.token}`,
-  //         // Do not set Content-Type for FormData, browser will set it
-  //       },
-  //       body: formData,
-  //     });
-  //     const data = await response.json();
+    try {
+      const formData = new FormData();
+      formData.append("chatId", selectedChat._id);
+      formData.append("file", file);
+      formData.append("type", type);
+      if (replyTo) formData.append("replyTo", replyTo._id); // ✅ reply for files too
 
-  //     socket.emit("new message", data);
-  //     setMessages([...messages, data]);
-  //     setShowFileOptions(false);
-  //   } catch (error) {
-  //     toast({
-  //       title: "Error Occured!",
-  //       description: "Failed to send the file/image",
-  //       status: "error",
-  //       duration: 5000,
-  //       isClosable: true,
-  //       position: "bottom-right",
-  //       variant: "solid",
-  //     });
-  //   }
-  // };
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      setShowFileOptions(false);
+      socket.emit("new message", data);
+      setMessages([...messages, data]);
+
+      // ✅ Clear reply/forward after sending
+      setReplyTo(null);
+      setForwardMessage(null);
+      setNewMessage("");
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to send file/image",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
+    }
+  };
 
   const suggestions = [
     "Hello!",
@@ -244,10 +302,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
     "Please confirm",
     "Looking forward to your response",
     "Can we schedule a meeting?",
-
   ];
 
-  const emojiList = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🙏", "👏", "😎"];
+  const emojiList = [
+    "👍",
+    "❤️",
+    "😂",
+    "😮",
+    "😢",
+    "😡",
+    "🎉",
+    "🙏",
+    "👏",
+    "😎",
+  ];
 
   // Copy message handler
   const handleCopyMessage = (msg) => {
@@ -284,10 +352,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
   };
 
   useEffect(() => {
-     if (selectedChat) {
+    if (selectedChat) {
       localStorage.setItem("selectedChat", JSON.stringify(selectedChat));
-    }
-    else{
+    } else {
       const storedChat = localStorage.getItem("selectedChat");
       if (storedChat) {
         setSelectedChat(JSON.parse(storedChat));
@@ -306,6 +373,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
             w="100%"
             fontFamily="Work sans"
             display="flex"
+            background={colorMode === "dark" ? "gray.700" : "white"}
             justifyContent={{ base: "space-between" }}
             alignItems="center"
             color={colorMode === "dark" ? "whiteAlpha.900" : "black"}
@@ -318,7 +386,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
             {!selectedChat.isGroupChat ? (
               <>
                 {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                <ProfileModal
+                  user={getSenderFull(user, selectedChat.users)}
+                  searchValue={searchValue}
+                  setSearchValue={setSearchValue}
+                  matchIndexes={matchIndexes}
+                  currentMatch={currentMatch}
+                  setCurrentMatch={setCurrentMatch}
+                />
               </>
             ) : (
               <>
@@ -363,6 +438,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
                   display: "flex",
                   flexDirection: "column",
                   overflowY: "scroll",
+                  flex: 1,
                   scrollbarWidth: "none",
                 }}
               >
@@ -381,25 +457,32 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
             )}
 
             {/* Suggestions Bar */}
-            <div style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "8px",
-              marginBottom: "8px",
-              marginTop: "8px"
-            }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "8px",
+                marginBottom: "8px",
+                marginTop: "8px",
+              }}
+            >
               {suggestions.map((msg, idx) => (
                 <button
                   key={idx}
                   style={{
                     background: "#e0e0e0",
                     border: "none",
+                    color: "#333",
                     borderRadius: "16px",
                     padding: "4px 12px",
                     cursor: "pointer",
-                    fontSize: "14px"
+                    fontSize: "14px",
                   }}
-                  onClick={() => setNewMessage(msg)}
+                 onClick={() => {
+  setNewMessage(msg);
+  sendMessage({ key: "Enter", preventDefault: () => {} });  // ✅ instantly send
+}}
+
                   type="button"
                 >
                   {msg}
@@ -423,18 +506,26 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontWeight: "bold", marginRight: 8, color: "#3182ce" }}>
+                  <span
+                    style={{
+                      fontWeight: "bold",
+                      marginRight: 8,
+                      color: "#3182ce",
+                    }}
+                  >
                     {replyTo
                       ? `Replying to ${replyTo.sender?.name || "message"}:`
                       : `Forwarding message:`}
                   </span>
-                  <span style={{
-                    color: "#2d3748",
-                    fontStyle: "italic",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}>
+                  <span
+                    style={{
+                      color: "#2d3748",
+                      fontStyle: "italic",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {(replyTo || forwardMessage)?.content}
                   </span>
                 </div>
@@ -454,6 +545,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
             )}
 
             <FormControl
+              key={colorMode}
               mt="3"
               onKeyDown={(e) => sendMessage(e)}
               isRequired
@@ -475,7 +567,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
               />
               {/* Emoji picker icon */}
               <IconButton
-                icon={<span role="img" aria-label="emoji">😊</span>}
+                icon={
+                  <span role="img" aria-label="emoji">
+                    😊
+                  </span>
+                }
                 variant="ghost"
                 aria-label="Add emoji"
                 onClick={() => setShowEmojiPicker((prev) => !prev)}
@@ -484,6 +580,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
               {/* Emoji picker dropdown */}
               {showEmojiPicker && (
                 <div
+                  ref={emojiPickerRef}
                   style={{
                     position: "absolute",
                     left: 60,
@@ -515,8 +612,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
                 </div>
               )}
               {/* File/Image options dropdown */}
-              {/* {showFileOptions && (
-                <div 
+              {showFileOptions && (
+                <div
+                  ref={fileOptionsRef}
                   style={{
                     position: "absolute",
                     left: 40,
@@ -533,13 +631,25 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
                   }}
                 >
                   <button
-                    style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                       color:"black",
+                    }}
                     onClick={() => imageInputRef.current.click()}
                   >
                     Upload Image
                   </button>
                   <button
-                    style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      color:"black",
+                    }}
                     onClick={() => fileInputRef.current.click()}
                   >
                     Upload File
@@ -558,7 +668,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
                     onChange={(e) => handleFileUpload(e, "file")}
                   />
                 </div>
-              )} */}
+              )}
               <Input
                 variant="filled"
                 bg={colorMode === "dark" ? "gray.700" : "#E0E0E0"}
@@ -566,8 +676,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain, colorMode }) => {
                 placeholder="Enter a message.."
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
+                onKeyDown={(e) => sendMessage(e)}
                 style={{ flex: 1 }}
                 aria-label="Type your message"
+              />
+              <IconButton
+                icon={
+                  <span role="img" aria-label="send">
+                    ➤
+                  </span>
+                }
+                colorScheme="blue"
+                variant="ghost"
+                onClick={() =>
+                  newMessage.trim() &&
+                  sendMessage({ key: "Enter", preventDefault: () => {} })
+                }
+                aria-label="Send message"
+                ml={2}
               />
             </FormControl>
           </Box>
