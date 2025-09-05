@@ -83,7 +83,7 @@ const sendMessage = async (req, res) => {
     
     return res.status(201).json(message);
   } catch (error) {
-    // console.error("sendMessage error:", error);
+    console.error("sendMessage error:", error);
     return res.status(400).json({
       success: false,
       statusCode: 400,

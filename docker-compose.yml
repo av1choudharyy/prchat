@@ -26,15 +26,10 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+      - ./ollama-entrypoint.sh:/ollama-entrypoint.sh   # mount startup script
     networks:
       - prchat-network
-    command: >
-      sh -c "
-        /bin/ollama serve & 
-        sleep 5 && 
-        ollama pull tinyllama && 
-        wait
-      "
+    entrypoint: ["/bin/sh", "/ollama-entrypoint.sh"]   # run custom script
 
   backend:
     build:
@@ -90,5 +85,5 @@ networks:
 volumes:
   mongodb_data:
     driver: local
-  ollama_data:        # ✅ Added this missing volume
+  ollama_data:
     driver: local

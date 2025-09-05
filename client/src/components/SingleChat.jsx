@@ -80,6 +80,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("stop typing", selectedChat._id);
       const messageToSend = quickText || newMessage;
       const isAiInteraction = /@prai\b/i.test(messageToSend) ? true : false;
+      let respMes;
       try {
         setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
 
@@ -96,6 +97,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         });
         const data = await response.json();
 
+        respMes = data;
         socket.emit("new message", data);
         setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
@@ -118,7 +120,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
           socket.emit("new message", data);
           setNewMessage("");
-          setMessages([...messages, data]); // Add new message with existing messages
+          setMessages([...messages,respMes, data]); // Add new message with existing messages
         }
       } catch (error) {
         return toast({
@@ -133,6 +135,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       }
     }
   };
+
+  console.log("message", messages);
 
 
   const typingHandler = (e) => {
