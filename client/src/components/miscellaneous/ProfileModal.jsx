@@ -1,5 +1,6 @@
 import { ViewIcon } from "@chakra-ui/icons";
 import {
+  Avatar,
   Button,
   IconButton,
   Image,
@@ -12,6 +13,7 @@ import {
   ModalOverlay,
   Text,
   useDisclosure,
+  VStack,
 } from "@chakra-ui/react";
 
 const ProfileModal = ({ user, children }) => {
@@ -22,50 +24,43 @@ const ProfileModal = ({ user, children }) => {
       {children ? (
         <span onClick={onOpen}>{children}</span>
       ) : (
-        <IconButton
-          display={{ base: "flex" }}
-          icon={<ViewIcon />}
-          onClick={onOpen}
-        />
+        <IconButton display={{ base: "flex" }} icon={<ViewIcon />} onClick={onOpen} />
       )}
 
-      {/* Profile Modal */}
       <Modal size="lg" isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
-
-        <ModalContent h="410px">
+        <ModalContent>
           <ModalHeader
             display="flex"
             justifyContent="center"
-            fontSize="40px"
+            fontSize="35px"
             fontFamily="Work sans"
+            fontWeight="bold"
           >
             {user.name}
           </ModalHeader>
 
           <ModalCloseButton />
 
-          <ModalBody
-            display="flex"
-            flexDir="column"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            {/* Profile Picture */}
-            <Image
-              borderRadius="full"
-              boxSize="150px"
-              src={user.pic}
-              alt={user.name}
-            />
+          <ModalBody>
+            <VStack spacing={6} align="center" justify="center">
+              {/* Profile Picture with guaranteed fallback */}
+              <Image
+                borderRadius="full"
+                boxSize="150px"
+                src={user.pic}
+                alt={user.name}
+                objectFit="cover"
+                fallbackSrc={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  user.name
+                )}&background=random`}
+              />
 
-            {/* Email Address */}
-            <Text
-              fontSize={{ base: "28px", md: "30px" }}
-              fontFamily="Work sans"
-            >
-              Email: {user.email}
-            </Text>
+              {/* Email */}
+              <Text fontSize="20px" fontFamily="Work sans">
+                Email: {user.email}
+              </Text>
+            </VStack>
           </ModalBody>
 
           <ModalFooter>

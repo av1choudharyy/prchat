@@ -1,10 +1,10 @@
-import { Box } from "@chakra-ui/react";
-
+import { Box, Text } from "@chakra-ui/react";
 import { ChatState } from "../context/ChatProvider";
 import SingleChat from "./SingleChat";
 
 const ChatBox = ({ fetchAgain, setFetchAgain }) => {
   const { selectedChat } = ChatState();
+
   return (
     <Box
       display={{ base: selectedChat ? "flex" : "none", md: "flex" }}
@@ -16,7 +16,20 @@ const ChatBox = ({ fetchAgain, setFetchAgain }) => {
       borderRadius="lg"
       borderWidth="1px"
     >
-      <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+      {selectedChat ? (
+        <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+      ) : (
+        <Text
+          fontSize="2xl"
+          color="black"
+          fontWeight="bold"
+          fontFamily="italic"
+          textAlign="center"
+          mt="30%"
+        >
+          Select a user to start chatting 💬
+        </Text>
+      )}
     </Box>
   );
 };

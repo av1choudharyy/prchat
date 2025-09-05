@@ -1,3 +1,4 @@
+import StylishHeading from "./StylishHeading"; 
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -32,11 +33,11 @@ const MyChats = ({ fetchAgain }) => {
       const data = await response.json();
 
       setChats(data);
-      onClose(); // Close the side drawer
+      onClose();
     } catch (error) {
       return toast({
         title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+        description: "Failed to Load the Chats",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -49,7 +50,6 @@ const MyChats = ({ fetchAgain }) => {
   useEffect(() => {
     setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
     fetchChats();
-    // eslint-disable-next-line
   }, [fetchAgain]);
 
   return (
@@ -63,28 +63,25 @@ const MyChats = ({ fetchAgain }) => {
       borderRadius="lg"
       borderWidth="1px"
     >
-      <Box
-        pb={3}
-        px={3}
-        fontSize={{ base: "28px", md: "30px" }}
-        fontFamily="Work sans"
-        display="flex"
-        w="100%"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        My Chats
+      {/* Heading in center */}
+      <Box textAlign="center" w="100%" mb={2}>
+        <StylishHeading />
+      </Box>
+
+      {/* Group Chat Button just below heading */}
+      <Box textAlign="center" w="100%" mb={3}>
         <GroupChatModal>
           <Button
-            display="flex"
-            fontSize={{ base: "17px", md: "10px", lg: "17px" }}
+            fontSize={{ base: "15px", md: "14px", lg: "15px" }}
             rightIcon={<AddIcon />}
+            colorScheme="teal"
           >
             New Group Chat
           </Button>
         </GroupChatModal>
       </Box>
 
+      {/* Chat List */}
       <Box
         display="flex"
         flexDir="column"

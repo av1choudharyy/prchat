@@ -57,3 +57,7 @@
   top: 0px;
   left: 18px;
 }
+html, body, #root {
+  min-height: 100%;
+  background: #ffffff !important; /* or #fafafa */
+}
