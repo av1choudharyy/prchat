@@ -1,10 +1,20 @@
 import { Box } from "@chakra-ui/react";
-
 import { ChatState } from "../context/ChatProvider";
 import SingleChat from "./SingleChat";
+import MessageComposer from "./MessageComposer(santosh)"; 
 
 const ChatBox = ({ fetchAgain, setFetchAgain }) => {
   const { selectedChat } = ChatState();
+
+  // handleSend accepts { content, styles } from MessageComposer
+  const handleSend = ({ content, styles }) => {
+    if (!content) return;
+
+    console.log("Message to send:", { content, styles });
+
+    // Later: axios.post("/api/message", { content, chatId: selectedChat._id, styles })
+  };
+
   return (
     <Box
       display={{ base: selectedChat ? "flex" : "none", md: "flex" }}
@@ -17,8 +27,11 @@ const ChatBox = ({ fetchAgain, setFetchAgain }) => {
       borderWidth="1px"
     >
       <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+
+      {selectedChat && <MessageComposer onSend={handleSend} />}
     </Box>
   );
 };
 
 export default ChatBox;
+
