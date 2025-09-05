@@ -3,12 +3,7 @@ import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
 import "../App.css";
-import {
-  isLastMessage,
-  isSameSender,
-  isSameSenderMargin,
-  isSameUser,
-} from "../config/ChatLogics";
+import { isLastMessage, isSameSender } from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
@@ -28,7 +23,16 @@ const ScrollableChat = ({
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
-  console.log("Messages:", messages);
+  // Utility function: format ISO timestamp to 12-hour time like "09:32 PM"
+  const formatTime = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   return (
     <>
@@ -38,138 +42,154 @@ const ScrollableChat = ({
       >
         {/* If something inside the messages, render the messages */}
         {messages &&
-          messages.map((message, index) => (
-            <div
-              ref={scrollRef}
-              key={message._id}
-              style={{
-                display: "flex",
-                justifyContent:
-                  message.sender._id === user._id ? "flex-end" : "flex-start", // ✅ Align right for my messages
-                padding: "5px",
-              }}
-            >
-              {(isSameSender(messages, message, index, user._id) ||
-                isLastMessage(messages, index, user._id)) && (
-                <Tooltip
-                  label={message.sender.name}
-                  placement="bottom-start"
-                  hasArrow
-                >
-                  <Avatar
-                    mt="7px"
-                    mr="1"
-                    size="sm"
-                    cursor="pointer"
-                    name={message.sender.name}
-                    src={message.sender.pic}
-                  />
-                </Tooltip>
-              )}
+          messages.map((message, index) => {
+            const isMine = message.sender._id === user._id;
 
+            return (
               <div
+                ref={scrollRef}
+                key={message._id}
                 style={{
-                  position: "relative",
-                  display: "inline-block",
-                  maxWidth: "75%",
+                  display: "flex",
+                  justifyContent: isMine ? "flex-end" : "flex-start",
+                  padding: "5px",
                 }}
               >
+                {/* Avatar (only shown when appropriate according to helper) */}
+                {(isSameSender(messages, message, index, user._id) ||
+                  isLastMessage(messages, index, user._id)) && (
+                  <Tooltip
+                    label={message.sender.name}
+                    placement="bottom-start"
+                    hasArrow
+                  >
+                    <Avatar
+                      mt="7px"
+                      mr="8px"
+                      size="sm"
+                      cursor="pointer"
+                      name={message.sender.name}
+                      src={message.sender.pic}
+                    />
+                  </Tooltip>
+                )}
+
+                {/* Message container */}
                 <div
                   style={{
-                    cursor: "pointer",
-                    backgroundColor:
-                      selectedMessage && selectedMessage._id === message._id
-                        ? "#d0e6ff" // highlight selected message
-                        : "transparent",
-                    borderRadius: "10px",
-                    padding: "3px",
+                    position: "relative",
+                    display: "inline-block",
+                    maxWidth: "75%",
                   }}
-                  onClick={() =>
-                    setSelectedMessage(
-                      selectedMessage && selectedMessage._id === message._id
-                        ? null
-                        : message
-                    )
-                  }
                 >
-                  {/* Main message bubble */}
-                  <span
+                  <div
                     style={{
-                    backgroundColor: `${
-                        message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                   }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  display: "inline-block",
+                      cursor: "pointer",
+                      backgroundColor:
+                        selectedMessage && selectedMessage._id === message._id
+                          ? "#d0e6ff"
+                          : "transparent",
+                      borderRadius: "10px",
+                      padding: "3px",
                     }}
-                    id={message._id}
-                    onClick={() => {
-                      if (message.replyTo) {
-                        const el = document.getElementById(
-                          message.replyTo._id
-                        );
-                        if (el) {
-                          el.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                          });
-                          el.style.backgroundColor = "#ffeaa7"; // temporary highlight
-                          setTimeout(
-                            () => (el.style.backgroundColor = ""),
-                            1500
-                          );
-                        }
-                      }
-                    }}
+                    onClick={() =>
+                      setSelectedMessage(
+                        selectedMessage && selectedMessage._id === message._id
+                          ? null
+                          : message
+                      )
+                    }
                   >
-                    {/* ✅ Show quoted message if this is a reply */}
-                    {message.replyTo && (
-                      <div
-                        style={{
-                          backgroundColor: "#f0f0f0",
-                          borderLeft: "3px solid #34b7f1",
-                          padding: "4px 8px",
-                          marginBottom: "6px",
-                          fontSize: "13px",
-                          color: "#555",
-                          borderRadius: "6px",
-                          maxWidth: "100%",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
+                    {/* SINGLE message bubble */}
+                    <div
+                      id={message._id}
+                      style={{
+                        backgroundColor: isMine ? "#BEE3F8" : "#B9F5D0",
+                        borderRadius: "20px",
+                        padding: "8px 14px",
+                        display: "inline-block",
+                        wordBreak: "break-word",
+                        position: "relative",
+                      }}
+                      onClick={() => {
+                        // If this message is a reply, scroll to the original message
+                        if (message.replyTo && message.replyTo._id) {
+                          const el = document.getElementById(message.replyTo._id);
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            // temporary highlight
+                            const prevBg = el.style.backgroundColor;
+                            el.style.backgroundColor = "#ffeaa7";
+                            setTimeout(() => (el.style.backgroundColor = prevBg), 1400);
+                          }
+                        }
+                      }}
+                    >
+                      {/* Quoted / reply preview inside the bubble (if any) */}
+                      {message.replyTo && (
                         <div
                           style={{
-                            fontWeight: "bold",
-                            fontSize: "12px",
-                            color: "#34b7f1",
+                            backgroundColor: "#f0f0f0",
+                            borderLeft: "3px solid #34b7f1",
+                            padding: "6px 8px",
+                            marginBottom: "6px",
+                            fontSize: "13px",
+                            color: "#555",
+                            borderRadius: "6px",
+                            maxWidth: "100%",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                           }}
                         >
-                          {message.replyTo.sender &&
-                          message.replyTo.sender._id === user._id
-                            ? "You"
-                            : message.replyTo.sender?.name}
+                          <div
+                            style={{
+                              fontWeight: "600",
+                              fontSize: "12px",
+                              color: "#34b7f1",
+                              marginBottom: "3px",
+                            }}
+                          >
+                            {message.replyTo.sender &&
+                            message.replyTo.sender._id === user._id
+                              ? "You"
+                              : message.replyTo.sender?.name}
+                          </div>
+                          <div style={{ fontSize: "13px", color: "#333" }}>
+                            {message.replyTo.content}
+                          </div>
                         </div>
-                        <div>{message.replyTo.content}</div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Actual message content */}
-                    {message.content}
-                  </span>
+                      {/* Actual message text */}
+                      <div style={{ fontSize: "16px", color: "#111" }}>
+                        {message.content}
+                      </div>
+
+                      {/* Timestamp */}
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "gray",
+                          marginTop: "6px",
+                          textAlign: "right",
+                        }}
+                      >
+                        {formatTime(message.createdAt)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
       </div>
+
       {isTyping ? (
         <div style={{ width: "70px", marginTop: "5px" }}>
           <Lottie animationData={typingAnimation} loop={true} />
         </div>
-      ) : (
-        <></>
-      )}
+      ) : null}
     </>
   );
 };
