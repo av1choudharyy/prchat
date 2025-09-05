@@ -56,7 +56,11 @@ const Login = () => {
         }),
       });
       const data = await response.json();
+<<<<<<< HEAD
 
+=======
+      console.log("data"+data)
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
       toast({
         title: data.message,
         status: !data.success ? "error" : "success",

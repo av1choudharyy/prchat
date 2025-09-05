@@ -12,7 +12,11 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+<<<<<<< HEAD
     "dotenv": "^16.0.3",
+=======
+    "dotenv": "^16.6.1",
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
     "express": "^4.18.2",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.6.5",

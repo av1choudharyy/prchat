@@ -1,88 +1,90 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
-import { useEffect, useRef } from "react";
-import Lottie from "lottie-react";
+<<<<<<< HEAD
+import { Box } from "@chakra-ui/react";
+import { useState, useRef, useEffect } from "react";
 
-import "../App.css";
-import {
-  isLastMessage,
-  isSameSender,
-  isSameSenderMargin,
-  isSameUser,
-} from "../config/ChatLogics";
-import { ChatState } from "../context/ChatProvider";
-import typingAnimation from "../animations/typing.json";
-
-const ScrollableChat = ({ messages, isTyping }) => {
-  const { user } = ChatState();
-
-  const scrollRef = useRef();
+const ScrollableChat = ({ messages, isTyping, searchTerm }) => {
+  const scrollRef = useRef(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   useEffect(() => {
-    // Scroll to the bottom when messeges render or sender is typing
-    scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isTyping]);
+    if (isAtBottom) {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages, isTyping, isAtBottom]);
+
+  const handleScroll = () => {
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    setIsAtBottom(scrollTop + clientHeight >= scrollHeight - 10);
+  };
 
   return (
-    <>
-      <div
-        className="hide-scrollbar"
-        style={{ overflowX: "hidden", overflowY: "auto" }}
-      >
-        {/* If something inside the messages, render the messages */}
-        {messages &&
-          messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
-              {(isSameSender(messages, message, index, user._id) ||
-                isLastMessage(messages, index, user._id)) && (
-                <Tooltip
-                  label={message.sender.name}
-                  placement="bottom-start"
-                  hasArrow
-                >
-                  <Avatar
-                    mt="7px"
-                    mr="1"
-                    size="sm"
-                    cursor="pointer"
-                    name={message.sender.name}
-                    src={message.sender.pic}
-                  />
-                </Tooltip>
-              )}
+    <Box
+      ref={scrollRef}
+      display="flex"
+      flexDir="column"
+      overflowY="auto"
+      h="100%"
+      onScroll={handleScroll}
+      p={3}
+      bg="#E5DDD5"
+    >
+      {/* Render messages here */}
+=======
+import { Box, Text, HStack, IconButton } from "@chakra-ui/react";
+import { CopyIcon, RepeatIcon } from "@chakra-ui/icons";
 
-              <span
-                style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  maxWidth: "75%",
+const ScrollableChat = ({ messages, user, setReplyMessage }) => {
+  return (
+    <Box display="flex" flexDirection="column" gap={2}>
+      {messages.map((message) => {
+        const isOwn = message.sender._id === user._id;
+        return (
+          <Box
+            key={message._id}
+            bg={isOwn ? "#DCF8C6" : "#FFFFFF"}
+            alignSelf={isOwn ? "flex-end" : "flex-start"}
+            px={3}
+            py={2}
+            borderRadius="lg"
+            maxW="70%"
+          >
+            <Text fontSize="sm" color="gray.700">{message.sender.name}</Text>
 
-                  marginLeft: isSameSenderMargin(
-                    messages,
-                    message,
-                    index,
-                    user._id
-                  ),
-                  marginTop: isSameUser(messages, message, index, user._id)
-                    ? 3
-                    : 10,
+            {message.replyToMessage && (
+              <Box bg="gray.100" p={1} borderRadius="md" mb={1}>
+                <Text fontSize="xs" color="gray.600">
+                  Replying to {message.replyToMessage.sender.name}: {message.replyToMessage.content}
+                </Text>
+              </Box>
+            )}
+
+            <Text>{message.content}</Text>
+
+            <HStack mt={1} spacing={1}>
+              <IconButton
+                size="xs"
+                icon={<CopyIcon />}
+                onClick={() => {
+                  navigator.clipboard.writeText(message.content);
+                  alert("Message copied!");
                 }}
-              >
-                {message.content}
-              </span>
-            </div>
-          ))}
-      </div>
-      {isTyping ? (
-        <div style={{ width: "70px", marginTop: "5px" }}>
-          <Lottie animationData={typingAnimation} loop={true} />
-        </div>
-      ) : (
-        <></>
-      )}
-    </>
+                aria-label="Copy message"
+              />
+              {!isOwn && (
+                <IconButton
+                  size="xs"
+                  icon={<RepeatIcon />}
+                  onClick={() => setReplyMessage(message)}
+                  aria-label="Reply message"
+                />
+              )}
+              <Text fontSize="xs" color="gray.500">{new Date(message.createdAt).toLocaleTimeString()}</Text>
+            </HStack>
+          </Box>
+        );
+      })}
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
+    </Box>
   );
 };
 
