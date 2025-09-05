@@ -57,7 +57,11 @@ const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
-      .populate("chat");
+      .populate("chat")
+      .populate({
+        path: "replyTo", // ✅ populate replyTo here as well
+        populate: { path: "sender", select: "name pic" },
+      });
 
     res.status(200).json(messages);
   } catch (error) {
