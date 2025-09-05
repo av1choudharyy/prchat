@@ -3,11 +3,14 @@ import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
+  HStack,
   IconButton,
   Input,
   Spinner,
   Text,
   useToast,
+  VStack,
+  CloseButton,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -16,6 +19,7 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import MessageSearch from "./MessageSearch";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -27,6 +31,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -117,12 +122,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: newMessage,
             chatId: selectedChat._id,
+            replyTo: replyingTo ? replyingTo._id : null,
           }),
         });
         const data = await response.json();
 
         socket.emit("new message", data);
         setNewMessage("");
+        setReplyingTo(null); // Clear reply state
         setMessages([...messages, data]); // Add new message with existing messages
       } catch (error) {
         return toast({
@@ -163,6 +170,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  // Reply to message handler
+  const handleReplyToMessage = (message) => {
+    setReplyingTo(message);
+  };
+
+  // Cancel reply
+  const cancelReply = () => {
+    setReplyingTo(null);
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -185,16 +202,28 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             {!selectedChat.isGroupChat ? (
               <>
                 {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                <HStack>
+                  <MessageSearch 
+                    selectedChat={selectedChat} 
+                    user={user} 
+                  />
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                </HStack>
               </>
             ) : (
               <>
                 {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
+                <HStack>
+                  <MessageSearch 
+                    selectedChat={selectedChat} 
+                    user={user} 
+                  />
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                </HStack>
               </>
             )}
           </Text>
@@ -227,17 +256,57 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat 
+                  messages={messages} 
+                  isTyping={isTyping}
+                  onReplyToMessage={handleReplyToMessage}
+                />
               </div>
+            )}
+
+            {/* Reply UI */}
+            {replyingTo && (
+              <Box
+                bg="blue.50"
+                p={4}
+                borderRadius="md"
+                borderLeft="4px solid"
+                borderLeftColor="blue.500"
+                border="1px solid"
+                borderColor="blue.200"
+                mb={2}
+                boxShadow="sm"
+              >
+                <HStack justify="space-between" align="flex-start">
+                  <VStack align="start" spacing={1} flex={1}>
+                    <Text fontSize="sm" color="blue.700" fontWeight="bold">
+                      Replying to {replyingTo.sender.name}:
+                    </Text>
+                    <Text fontSize="sm" color="gray.800" noOfLines={2} fontWeight="medium">
+                      {replyingTo.content}
+                    </Text>
+                  </VStack>
+                  <CloseButton size="sm" onClick={cancelReply} />
+                </HStack>
+              </Box>
             )}
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
+                bg="white"
+                border="1px solid"
+                borderColor="gray.300"
+                placeholder={replyingTo ? "Type your reply..." : "Enter a message.."}
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
+                _focus={{
+                  borderColor: "blue.500",
+                  boxShadow: "0 0 0 1px #3182ce"
+                }}
+                _hover={{
+                  borderColor: "blue.300"
+                }}
               />
             </FormControl>
           </Box>
