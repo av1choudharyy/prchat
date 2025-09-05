@@ -1,25 +1,21 @@
 const { Message, Chat } = require("../models");
 
-// @description     Create New Message
-// @route           POST /api/Message/
-// @access          Protected
+// @desc Create New Message
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, fileUrl, fileType, fileName } = req.body;
 
-  if (!content || !chatId) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Invalid data passed into request",
-    });
+  if ((!content && !fileUrl) || !chatId) {
+    return res.status(400).json({ message: "Invalid data" });
   }
 
   try {
-    // Create a new message
     let message = await Message.create({
-      sender: req.user._id, // Logged in user id,
+      sender: req.user._id,
       content,
       chat: chatId,
+      fileUrl,
+      fileType,
+      fileName,
     });
 
     message = await (
@@ -31,36 +27,56 @@ const sendMessage = async (req, res) => {
       populate: { path: "users", select: "name email pic", model: "User" },
     });
 
-    // Update latest message
-    await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+    await Chat.findByIdAndUpdate(chatId, { latestMessage: message });
 
-    return res.status(201).json(message); // Send message we just created now
+    return res.status(201).json(message);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Failed to create New Message",
-    });
+    return res.status(400).json({ message: "Failed to create message" });
   }
 };
 
-// @description     Get all Messages
-// @route           GET /api/Message/:chatId
-// @access          Protected
+// @desc Get all messages
 const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
       .populate("chat");
-
     res.status(200).json(messages);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      statusCode: 400,
-      message: "Failed to fetch all Messages",
-    });
+    return res.status(400).json({ message: "Failed to fetch messages" });
   }
 };
 
-module.exports = { sendMessage, allMessages };
+// @desc Search messages in a chat
+// GET /api/message/search?chatId=xxx&query=yyy
+const searchMessages = async (req, res) => {
+  console.log("Hi");
+  try {
+    const { chatId, query } = req.query;
+
+    if (!chatId || !query) {
+      return res.status(400).json({ message: "chatId and query required" });
+    }
+
+    const regex = new RegExp(query, "i");
+
+    const messages = await Message.find({
+      chat: chatId,
+      $or: [
+        { content: { $regex: regex } },   // ✅ text messages
+        { fileName: { $regex: regex } },  // ✅ file names
+      ],
+    })
+      .populate("sender", "name pic email")
+      .populate("chat");
+
+    res.status(200).json(messages || []);
+    
+  } catch (error) {
+    res.status(400).json({ message: "Failed to search messages" });
+  }
+};
+
+
+
+module.exports = { sendMessage, allMessages, searchMessages };
