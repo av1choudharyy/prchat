@@ -162,16 +162,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 const onReact = async (messageId, emoji) => {
   try {
     const { data: updatedMessage } = await axios.put(
-      `/api/message/${messageId}/react`, // ✅ matches backend route
-      { emoji },                         // ✅ matches backend body
-      {
-        headers: {
-          Authorization: `Bearer ${user.token}`, // ✅ ensures protected access
-        },
-      }
+      `/api/message/${messageId}/react`,
+      { emoji },
+      { headers: { Authorization: `Bearer ${user.token}` } }
     );
 
-    // ✅ Update local message state with the new reaction
     setMessages((prevMessages) =>
       prevMessages.map((msg) =>
         msg._id === updatedMessage._id ? updatedMessage : msg

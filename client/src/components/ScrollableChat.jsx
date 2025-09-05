@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Lottie from "lottie-react";
 import {
   Avatar,
@@ -26,17 +26,12 @@ const getFontStyle = (style) => {
   }
 };
 
-const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact,fontStyle, }) => {
+const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact,fontStyle,chatTheme }) => {
   const { user } = ChatState();
   const highlightRef = useRef();
   const emojiOptions = ["❤️", "😂", "👍", "🔥", "😢"];
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
-
-  useEffect(() => {
-    if (highlightRef.current) {
-      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [highlightedMessageId]);
+  
 
   return (
     <>
