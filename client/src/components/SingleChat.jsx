@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -17,10 +17,11 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5000"; 
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
+  const [searchQuery, setSearchQuery] = useState("");
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,10 +34,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const toast = useToast();
 
   const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
-    if (!selectedChat) {
-      return;
-    }
+    if (!selectedChat) return;
 
     try {
       setLoading(true);
@@ -78,7 +76,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   }, []);
 
   useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
+    fetchMessages();
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
@@ -91,22 +89,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+          setFetchAgain(!fetchAgain);
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
       }
     });
-
     // eslint-disable-next-line
   });
 
   const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setNewMessage("");
 
         const response = await fetch("/api/message", {
           method: "POST",
@@ -123,7 +119,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         socket.emit("new message", data);
         setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
+        setMessages((prevMessages) => [...prevMessages, data]);
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -141,7 +137,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
 
-    // Typing Indicator Logic
     if (!socketConnected) return;
 
     if (!typing) {
@@ -163,13 +158,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  // ✅ Filter messages by search query
+  const filteredMessages = messages.filter((msg) =>
+    msg.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <>
       {selectedChat ? (
-        <>
+        <Box display="flex" flexDir="column" w="100%" h="100%">
+          {/* Header */}
           <Text
             fontSize={{ base: "28px", md: "30px" }}
-            pb="3"
+            pb="2"
             px="2"
             w="100%"
             fontFamily="Work sans"
@@ -199,6 +200,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
           </Text>
 
+          {/* ✅ Search Bar under header */}
+          <Input
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            mb={2}
+            bg="white"
+            mx={2}
+          />
+
+          {/* Chat Body */}
           <Box
             display="flex"
             flexDir="column"
@@ -227,10 +239,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                {/* ✅ Pass filtered messages */}
+                <ScrollableChat messages={messages} isTyping={isTyping} searchQuery={searchQuery} />
               </div>
             )}
 
+            {/* Message Input */}
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
@@ -241,7 +255,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               />
             </FormControl>
           </Box>
-        </>
+        </Box>
       ) : (
         <Box
           display="flex"
