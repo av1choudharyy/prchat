@@ -11,6 +11,8 @@ import {
   Tag,
   TagLabel,
   TagCloseButton,
+  HStack,
+  Button,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -31,6 +33,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
+  const suggestions = ["Okay", "Thanks!", "On it"]; // quick replies
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -251,6 +254,21 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 <TagCloseButton onClick={() => setReplyTo(null)} />
               </Tag>
             ) : null}
+
+            <HStack spacing={2} mb="2">
+              {suggestions.map((text) => (
+                <Button
+                  key={text}
+                  size="xs"
+                  variant="outline"
+                  onClick={() =>
+                    setNewMessage((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                >
+                  {text}
+                </Button>
+              ))}
+            </HStack>
 
             <FormControl mt="1" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
