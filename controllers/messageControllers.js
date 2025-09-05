@@ -1,10 +1,10 @@
 const { Message, Chat } = require("../models");
 
 // @description     Create New Message
-// @route           POST /api/Message/
+// @route           POST /api/message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, replyTo } = req.body; // added replyTo
 
   if (!content || !chatId) {
     return res.status(400).json({
@@ -17,25 +17,33 @@ const sendMessage = async (req, res) => {
   try {
     // Create a new message
     let message = await Message.create({
-      sender: req.user._id, // Logged in user id,
+      sender: req.user._id, // Logged in user id
       content,
       chat: chatId,
+      replyTo: replyTo || null, // save reply if exists
     });
 
     message = await (
       await message.populate("sender", "name pic")
-    ).populate({
-      path: "chat",
-      select: "chatName isGroupChat users",
-      model: "Chat",
-      populate: { path: "users", select: "name email pic", model: "User" },
-    });
+    )
+      .populate({
+        path: "chat",
+        select: "chatName isGroupChat users",
+        model: "Chat",
+        populate: { path: "users", select: "name email pic", model: "User" },
+      })
+      .populate({
+        path: "replyTo",
+        select: "content sender",
+        populate: { path: "sender", select: "name pic", model: "User" },
+      });
 
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
 
-    return res.status(201).json(message); // Send message we just created now
+    return res.status(201).json(message);
   } catch (error) {
+    console.error("Send message error:", error);
     return res.status(400).json({
       success: false,
       statusCode: 400,
@@ -45,16 +53,22 @@ const sendMessage = async (req, res) => {
 };
 
 // @description     Get all Messages
-// @route           GET /api/Message/:chatId
+// @route           GET /api/message/:chatId
 // @access          Protected
 const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
-      .populate("chat");
+      .populate("chat")
+      .populate({
+        path: "replyTo",
+        select: "content sender",
+        populate: { path: "sender", select: "name pic", model: "User" },
+      });
 
     res.status(200).json(messages);
   } catch (error) {
+    console.error("Fetch messages error:", error);
     return res.status(400).json({
       success: false,
       statusCode: 400,
