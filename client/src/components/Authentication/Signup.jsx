@@ -8,6 +8,12 @@ import {
   InputRightElement,
   Stack,
   useToast,
+  Box,
+  HStack,
+  Switch,
+  Text,
+  useColorMode,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +23,8 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
+
+  const { colorMode, toggleColorMode } = useColorMode();
 
   const [credentials, setCredentials] = useState({
     name: "",
@@ -33,8 +41,8 @@ const Signup = () => {
   const handleUploadPicture = async (e) => {
     setLoading(true);
 
-    // If no image selected
     if (e.target.files[0] === undefined) {
+      setLoading(false);
       return toast({
         title: "Please select an image",
         status: "warning",
@@ -45,16 +53,15 @@ const Signup = () => {
       });
     }
 
-    // Check if the type of image is jpeg or png
     if (
       e.target.files[0].type === "image/jpeg" ||
       e.target.files[0].type === "image/png"
     ) {
       try {
         const data = new FormData();
-        data.append("file", e.target.files[0]); // Contains the file
-        data.append("upload_preset", "chat-app"); // Upload preset in Cloudinary
-        data.append("cloud_name", "devcvus7v"); // Cloud name in Cloudinary
+        data.append("file", e.target.files[0]);
+        data.append("upload_preset", "chat-app");
+        data.append("cloud_name", "devcvus7v");
 
         const response = await fetch(
           "https://api.cloudinary.com/v1_1/devcvus7v/image/upload",
@@ -75,10 +82,9 @@ const Signup = () => {
         setLoading(false);
       }
     } else {
-      console.log("Hello");
       setLoading(false);
       return toast({
-        title: "Please select an image",
+        title: "Please select an image (jpeg/png only)",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -91,7 +97,6 @@ const Signup = () => {
   const submitHandler = async () => {
     setLoading(true);
 
-    // If anything is missing
     if (
       !credentials.name ||
       !credentials.email ||
@@ -100,7 +105,7 @@ const Signup = () => {
     ) {
       setLoading(false);
       return toast({
-        title: "Please Fill all the Feilds",
+        title: "Please Fill all the Fields",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -109,7 +114,6 @@ const Signup = () => {
       });
     }
 
-    // If password and confirm password doesn't match
     if (credentials.password !== credentials.confirmPassword) {
       setLoading(false);
       return toast({
@@ -122,7 +126,6 @@ const Signup = () => {
       });
     }
 
-    // Now submit the data
     try {
       const response = await fetch("/api/user", {
         method: "POST",
@@ -168,36 +171,39 @@ const Signup = () => {
   };
 
   return (
-    <Stack spacing="6">
-      <Stack spacing="5">
+    <Box
+      bg={useColorModeValue("white", "gray.800")}
+      p={8}
+      borderRadius="lg"
+      boxShadow="lg"
+    >
+      <Stack spacing="6">
         <FormControl isRequired id="name">
-          <FormLabel htmlFor="name">Name</FormLabel>
+          <FormLabel>Name</FormLabel>
           <Input
             type="text"
             name="name"
             value={credentials.name}
             placeholder="Enter Your Name"
-            onChange={(e) => handleCredentials(e)}
+            onChange={handleCredentials}
+            bg={useColorModeValue("gray.100", "gray.700")}
           />
         </FormControl>
-      </Stack>
 
-      <Stack spacing="5">
         <FormControl isRequired id="email">
-          <FormLabel htmlFor="email">Email</FormLabel>
+          <FormLabel>Email</FormLabel>
           <Input
             type="email"
             name="email"
             value={credentials.email}
             placeholder="Enter Your Email"
-            onChange={(e) => handleCredentials(e)}
+            onChange={handleCredentials}
+            bg={useColorModeValue("gray.100", "gray.700")}
           />
         </FormControl>
-      </Stack>
 
-      <Stack spacing="5">
         <FormControl isRequired id="password">
-          <FormLabel htmlFor="password">Password</FormLabel>
+          <FormLabel>Password</FormLabel>
           <InputGroup>
             <InputRightElement w="4.5rem">
               <Button h="1.75rem" size="sm" onClick={() => setShow(!show)}>
@@ -209,15 +215,14 @@ const Signup = () => {
               name="password"
               value={credentials.password}
               placeholder="Password"
-              onChange={(e) => handleCredentials(e)}
+              onChange={handleCredentials}
+              bg={useColorModeValue("gray.100", "gray.700")}
             />
           </InputGroup>
         </FormControl>
-      </Stack>
 
-      <Stack spacing="5">
         <FormControl isRequired id="confirmPassword">
-          <FormLabel htmlFor="confirmPassword">Confirm Password</FormLabel>
+          <FormLabel>Confirm Password</FormLabel>
           <InputGroup>
             <InputRightElement w="4.5rem">
               <Button h="1.75rem" size="sm" onClick={() => setShow(!show)}>
@@ -229,27 +234,22 @@ const Signup = () => {
               name="confirmPassword"
               value={credentials.confirmPassword}
               placeholder="Confirm Password"
-              onChange={(e) => handleCredentials(e)}
+              onChange={handleCredentials}
+              bg={useColorModeValue("gray.100", "gray.700")}
             />
           </InputGroup>
         </FormControl>
-      </Stack>
 
-      <Stack spacing="5">
         <FormControl id="pic">
-          <FormLabel htmlFor="pic">Upload your Picture</FormLabel>
-
+          <FormLabel>Upload your Picture</FormLabel>
           <InputGroup>
             <InputLeftElement pointerEvents="none">
               <i className="fas fa-folder-open" />
             </InputLeftElement>
-
             <Input
               type="file"
               name="pic"
               accept="image/*"
-              isInvalid={true}
-              errorBorderColor="#eaafc8"
               sx={{
                 "::file-selector-button": {
                   height: 10,
@@ -260,22 +260,23 @@ const Signup = () => {
                   fontWeight: "bold",
                 },
               }}
-              onChange={(e) => handleUploadPicture(e)}
+              onChange={handleUploadPicture}
+              bg={useColorModeValue("gray.100", "gray.700")}
             />
           </InputGroup>
         </FormControl>
-      </Stack>
 
-      <Button
-        colorScheme="blue"
-        width="100%"
-        style={{ marginTop: 15 }}
-        onClick={() => submitHandler()}
-        isLoading={loading}
-      >
-        Sign Up
-      </Button>
-    </Stack>
+        <Button
+          colorScheme="blue"
+          width="100%"
+          mt={4}
+          onClick={submitHandler}
+          isLoading={loading}
+        >
+          Sign Up
+        </Button>
+      </Stack>
+    </Box>
   );
 };
 

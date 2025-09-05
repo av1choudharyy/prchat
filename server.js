@@ -11,6 +11,7 @@ app.use(express.json()); // Accept JSON data
 dotenv.config({ path: path.join(__dirname, "./.env") }); // Specify a custom path if your file containing environment variables is located elsewhere
 connectToMongoDB(); // Connect to Database
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
@@ -65,7 +66,7 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+    let chat = newMessageRecieved.chat;
 
     if (!chat.users) return console.log("chat.users not defined");
 

@@ -16,6 +16,9 @@ RUN npm install
 # Copy application files
 COPY . .
 
+# ✅ Create uploads folder inside container
+RUN mkdir -p /app/uploads
+
 # Expose port
 EXPOSE 5000
 
