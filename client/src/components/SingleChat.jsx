@@ -8,8 +8,11 @@ import {
   Spinner,
   Text,
   useToast,
+  InputGroup,
+  InputRightElement
 } from "@chakra-ui/react";
 import io from "socket.io-client";
+import { SearchIcon, CloseIcon  } from "@chakra-ui/icons";
 
 import { ChatState } from "../context/ChatProvider";
 import { getSender, getSenderFull } from "../config/ChatLogics";
@@ -27,10 +30,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+   const [filteredMessages, setFilteredMessages] = useState([]);
+   const [replyTo, setReplyTo] = useState(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
+
+  const handleReply = (messageId, senderName, content) => {
+    setReplyTo({ id: messageId, senderName, content });
+  };
 
   const fetchMessages = async () => {
     // If no chat is selected, don't do anything
@@ -50,6 +60,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       const data = await response.json();
 
       setMessages(data);
+      setFilteredMessages(data);
       setLoading(false);
 
       socket.emit("join chat", selectedChat._id);
@@ -107,6 +118,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("stop typing", selectedChat._id);
       try {
         setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setReplyTo(null);
 
         const response = await fetch("/api/message", {
           method: "POST",
@@ -138,6 +150,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
+  const handleSearch = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Filter messages based on the search query
+    const filtered = messages.filter((message) =>
+      message.content.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredMessages(filtered);
+  };
+
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
 
@@ -162,6 +185,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       }
     }, timerLength);
   };
+  
 
   return (
     <>
@@ -199,6 +223,21 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
           </Text>
 
+          <FormControl mt="3">
+            <InputGroup>
+              <Input
+                variant="filled"
+                bg="#E0E0E0"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={handleSearch}
+              />
+              <InputRightElement pointerEvents="none">
+                <SearchIcon color="gray.300" />
+              </InputRightElement>
+            </InputGroup>
+          </FormControl>
+
           <Box
             display="flex"
             flexDir="column"
@@ -227,8 +266,32 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat messages={filteredMessages} isTyping={isTyping} handleReply={handleReply} />
               </div>
+            )}
+
+            {/* Display the reply-to banner */}
+            {replyTo && (
+            <Box
+                mt="2"
+                p="2"
+                bg="gray.200"
+                borderRadius="md"
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Box>
+                  <Text fontWeight="bold">Replying to {replyTo.senderName}</Text>
+                  <Text fontSize="sm" isTruncated>{replyTo.content}</Text>
+                </Box>
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  icon={<CloseIcon />}
+                  onClick={() => setReplyTo(null)}
+                />
+              </Box>
             )}
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
