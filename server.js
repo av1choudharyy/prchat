@@ -1,6 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
+const cors = require("cors");
 
 const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
@@ -39,6 +40,11 @@ app.use(errorHandler);
 const server = app.listen(process.env.PORT, () =>
   console.log(`Server started on PORT ${process.env.PORT}`)
 );
+
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
 
 const io = require("socket.io")(server, {
   cors: {
