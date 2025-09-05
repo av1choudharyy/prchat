@@ -95,10 +95,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           setFetchAgain(!fetchAgain);
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prev) => [...prev, newMessageRecieved]);
       }
     });
-  });
+
+    // ✅ Listen for reaction updates
+    socket.on("message reaction", (updatedMessage) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+    });
+  }, [messages, notification, fetchAgain]);
 
   const sendMessage = async (e) => {
     if (e.key === "Enter" && newMessage) {
@@ -169,6 +178,39 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setTyping(false);
       }
     }, timerLength);
+  };
+
+  // ✅ Handle reacting to a message
+  const handleReactMessage = async (messageId, emoji) => {
+    try {
+      const response = await fetch(`/api/message/${messageId}/react`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emoji }),
+      });
+      const updatedMessage = await response.json();
+
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+
+      socket.emit("message reaction", updatedMessage);
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to react to message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
+    }
   };
 
   return (
@@ -252,6 +294,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   isTyping={isTyping}
                   setReplyingTo={setReplyingTo}
                   searchTerm={searchTerm}
+                  onReactMessage={handleReactMessage} // ✅ Pass down reaction handler
                 />
               </div>
             )}
