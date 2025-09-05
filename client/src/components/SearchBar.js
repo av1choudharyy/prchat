@@ -5,7 +5,7 @@ export default function SearchBar({ onResults }) {
   const [q, setQ] = useState("");
 
   const handleSearch = async () => {
-    const res = await axios.get(`http://localhost:5000/api/messages/search?q=${q}`);
+    const res = await axios.get(`http://localhost:5001/api/messages/search?q=${q}`);
     onResults(res.data);
   };
 

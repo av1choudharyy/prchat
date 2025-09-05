@@ -3,7 +3,7 @@ export default function MessageList({ messages }) {
       <div>
         {messages.map((m, i) => (
           <div key={i}>
-            <b>{m.sender}</b>: {m.fileUrl ? <a href={`http://localhost:5000${m.fileUrl}`} target="_blank" rel="noreferrer">{m.text}</a> : m.text}
+            <b>{m.sender}</b>: {m.fileUrl ? <a href={`http://localhost:5001${m.fileUrl}`} target="_blank" rel="noreferrer">{m.text}</a> : m.text}
           </div>
         ))}
       </div>

@@ -1,7 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
-import { messageRoutes } from "./routes";
+// import { messageRoutes } from "./routes";
 
 const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");

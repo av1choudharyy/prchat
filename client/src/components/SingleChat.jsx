@@ -21,7 +21,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000";
+const ENDPOINT = "http://localhost:5001";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
