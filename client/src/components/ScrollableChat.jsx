@@ -1,7 +1,7 @@
 import { Avatar, Tooltip } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
-
+import ChatBubble from './ChatBubble';
 import "../App.css";
 import {
   isLastMessage,
@@ -12,7 +12,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping }) => {
+const ScrollableChat = ({ messages, isTyping, setReplyToMessage }) => {
   const { user } = ChatState();
 
   const scrollRef = useRef();
@@ -31,7 +31,17 @@ const ScrollableChat = ({ messages, isTyping }) => {
         {/* If something inside the messages, render the messages */}
         {messages &&
           messages.map((message, index) => (
-            <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
+            <div ref={scrollRef} 
+                  key={message._id} 
+                  style={{ 
+                      display: "flex",  
+                      alignItems: "flex-end",
+                       padding: "5px 15px",
+                       maxWidth: "75%",
+                      justifyContent: message.sender._id === user._id ? "flex-end" : "flex-start", 
+                       marginLeft: isSameSenderMargin(messages,message,index,user._id),
+                      marginTop: isSameUser(messages, message, index) ? 3 : 10,
+                    }}>
               {(isSameSender(messages, message, index, user._id) ||
                 isLastMessage(messages, index, user._id)) && (
                 <Tooltip
@@ -50,7 +60,13 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
+               <ChatBubble 
+                message={message} 
+                isSelf={message.sender._id === user._id}
+                setReplyToMessage={setReplyToMessage}
+              />
+
+              {/* <span
                 style={{
                   backgroundColor: `${
                     message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
@@ -71,7 +87,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 }}
               >
                 {message.content}
-              </span>
+              </span> */}
             </div>
           ))}
       </div>

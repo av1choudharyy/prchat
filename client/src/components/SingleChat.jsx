@@ -17,6 +17,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
+
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
 
@@ -27,7 +28,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-
+  const [replyToMessage, setReplyToMessage] = useState(null);
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
@@ -106,23 +107,31 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     if (e.key === "Enter" && newMessage) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        const payload = {
+          content: newMessage,
+          chatId: selectedChat._id,
+          // Include the new field
+          repliedToMessageId: replyToMessage ? replyToMessage._id : null,
+        };
 
+        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setReplyToMessage(null);
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
+          body: JSON.stringify(payload),
+          // body: JSON.stringify({
+          //   content: newMessage,
+          //   chatId: selectedChat._id,
+          // }),
         });
         const data = await response.json();
 
         socket.emit("new message", data);
-        setNewMessage("");
+        // setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
       } catch (error) {
         return toast({
@@ -227,9 +236,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat messages={messages} isTyping={isTyping} setReplyToMessage={setReplyToMessage} />
               </div>
             )}
+
+            <Box display={replyToMessage ? 'flex' : 'none'} p={2} bg="gray.100" borderRadius="md" mt={2} alignItems="center">
+              <Box flex="1">
+                <Text fontSize="xs" fontWeight="bold">Replying to {replyToMessage?.sender?.name}:</Text>
+                <Text fontSize="sm" noOfLines={1}>{replyToMessage?.content}</Text>
+              </Box>
+              <IconButton
+                aria-label="Cancel reply"
+                icon={<ArrowBackIcon transform="rotate(45deg)" />}
+                size="xs"
+                ml={2}
+                onClick={() => setReplyToMessage(null)}
+              />
+            </Box>
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
