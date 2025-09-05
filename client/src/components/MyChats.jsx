@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-  Box,
   Button,
   Stack,
   Text,
   useDisclosure,
   useToast,
+  useColorMode,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 
@@ -20,6 +20,7 @@ const MyChats = ({ fetchAgain }) => {
   const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
   const toast = useToast();
   const { onClose } = useDisclosure();
+  const { colorMode } = useColorMode();
 
   const fetchChats = async () => {
     try {
@@ -32,7 +33,7 @@ const MyChats = ({ fetchAgain }) => {
       const data = await response.json();
 
       setChats(data);
-      onClose(); // Close the side drawer
+      onClose();
     } catch (error) {
       return toast({
         title: "Error Occured!",
@@ -46,32 +47,52 @@ const MyChats = ({ fetchAgain }) => {
     }
   };
 
+  const handleChatSelect = (e, chat) => {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Selecting chat:", chat);
+      setSelectedChat(chat);
+    } catch (error) {
+      console.error("Error selecting chat:", error);
+    }
+  };
+
   useEffect(() => {
-    setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
-    fetchChats();
-    // eslint-disable-next-line
-  }, [fetchAgain]);
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    setLoggedUser(userInfo);
+    if (user && user.token) {
+      fetchChats();
+    }
+  }, [fetchAgain, user]);
 
   return (
-    <Box
-      display={{ base: selectedChat ? "none" : "flex", md: "flex" }}
-      flexDir="column"
-      alignItems="center"
-      p={3}
-      bg="white"
-      w={{ base: "100%", md: "31%" }}
-      borderRadius="lg"
-      borderWidth="1px"
+    <div
+      style={{
+        display: window.innerWidth >= 768 ? "flex" : (selectedChat ? "none" : "flex"),
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "12px",
+        backgroundColor: colorMode === "light" ? "white" : "#1A202C",
+        width: window.innerWidth >= 768 ? "31%" : "100%",
+        borderRadius: "8px",
+        border: "1px solid #E2E8F0",
+        height: "91.5vh"
+      }}
+      className="mychats-container"
     >
-      <Box
-        pb={3}
-        px={3}
-        fontSize={{ base: "28px", md: "30px" }}
-        fontFamily="Work sans"
-        display="flex"
-        w="100%"
-        justifyContent="space-between"
-        alignItems="center"
+      <div
+        style={{
+          paddingBottom: "12px",
+          paddingLeft: "12px",
+          paddingRight: "12px",
+          fontSize: "28px",
+          fontFamily: "Work sans",
+          display: "flex",
+          width: "100%",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
         My Chats
         <GroupChatModal>
@@ -83,29 +104,34 @@ const MyChats = ({ fetchAgain }) => {
             New Group Chat
           </Button>
         </GroupChatModal>
-      </Box>
+      </div>
 
-      <Box
-        display="flex"
-        flexDir="column"
-        p={3}
-        bg="#F8F8F8"
-        w="100%"
-        h="100%"
-        borderRadius="lg"
-        overflowY="hidden"
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          padding: "12px",
+          backgroundColor: colorMode === "light" ? "#F8F8F8" : "#2D3748",
+          width: "100%",
+          height: "100%",
+          borderRadius: "8px",
+          overflowY: "hidden",
+        }}
       >
-        {chats ? (
-          <Stack overflowY="scroll">
+        {chats && chats.length > 0 ? (
+          <div style={{ overflowY: "scroll", height: "100%" }}>
             {chats.map((chat) => (
-              <Box
-                onClick={() => setSelectedChat(chat)}
-                cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
-                px={3}
-                py={2}
-                borderRadius="lg"
+              <div
+                onClick={(e) => handleChatSelect(e, chat)}
+                style={{
+                  cursor: "pointer",
+                  backgroundColor: selectedChat === chat ? "#38B2AC" : colorMode === "light" ? "#E8E8E8" : "#4A5568",
+                  color: selectedChat === chat ? "white" : colorMode === "light" ? "black" : "white",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  marginBottom: "8px",
+                  userSelect: "none"
+                }}
                 key={chat._id}
               >
                 <Text>
@@ -113,14 +139,14 @@ const MyChats = ({ fetchAgain }) => {
                     ? getSender(loggedUser, chat.users)
                     : chat.chatName}
                 </Text>
-              </Box>
+              </div>
             ))}
-          </Stack>
+          </div>
         ) : (
           <ChatLoading />
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

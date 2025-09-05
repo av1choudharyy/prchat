@@ -19,6 +19,7 @@ import {
   Tooltip,
   useDisclosure,
   useToast,
+  useColorMode,
 } from "@chakra-ui/react";
 import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useState } from "react";
@@ -29,6 +30,7 @@ import ProfileModal from "./ProfileModal";
 import ChatLoading from "../ChatLoading";
 import UserListItem from "../UserAvatar/UserListItem";
 import { getSender } from "../../config/ChatLogics";
+import ThemeToggle from "../ThemeToggle";
 import "../../App.css";
 
 const SideDrawer = () => {
@@ -48,6 +50,7 @@ const SideDrawer = () => {
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+  const { colorMode } = useColorMode();
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
@@ -136,7 +139,7 @@ const SideDrawer = () => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={colorMode === "light" ? "white" : "gray.800"}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
@@ -157,7 +160,8 @@ const SideDrawer = () => {
         </Text>
 
         {/* User Profile and Bell Icon Section */}
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <ThemeToggle />
           <Menu>
             <MenuButton p="1" className="notification-badge-container">
               <BellIcon fontSize="2xl" m="1" />
@@ -182,9 +186,9 @@ const SideDrawer = () => {
                   {notif.chat.isGroupChat
                     ? `New Message in ${notif.chat[0].chatName}`
                     : `New Message from ${getSender(
-                        user,
-                        notif.chat[0].users
-                      )}`}
+                      user,
+                      notif.chat[0].users
+                    )}`}
                   {/* Change chat[0] to chat from server side */}
                 </MenuItem>
               ))}
@@ -215,9 +219,17 @@ const SideDrawer = () => {
 
       <Drawer placement="left" isOpen={isOpen} onClose={onClose}>
         <DrawerOverlay />
-        <DrawerContent>
+        <DrawerContent
+          bg={colorMode === "light" ? "white" : "gray.800"}
+          color={colorMode === "light" ? "black" : "white"}
+        >
           <DrawerCloseButton />
-          <DrawerHeader>Search Users</DrawerHeader>
+          <DrawerHeader
+            bg={colorMode === "light" ? "white" : "gray.800"}
+            color={colorMode === "light" ? "black" : "white"}
+          >
+            Search Users
+          </DrawerHeader>
 
           <DrawerBody>
             {/* Search User */}

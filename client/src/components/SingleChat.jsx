@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
   IconButton,
   Input,
+  InputGroup,
+  InputRightElement,
   Spinner,
   Text,
   useToast,
+  HStack,
+  useColorMode,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -16,6 +20,9 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import EmojiPickerComponent from "./EmojiPicker";
+import MessageScheduler from "./MessageScheduler";
+import { FileAttachment, SmartReplySuggestions, AutoComplete } from "./index";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -27,10 +34,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showSmartReplySuggestions, setShowSmartReplySuggestions] = useState(false);
+  const [smartReplySuggestions, setSmartReplySuggestions] = useState([]);
+  const inputRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
+  const { colorMode } = useColorMode();
 
   const fetchMessages = async () => {
     // If no chat is selected, don't do anything
@@ -101,30 +116,50 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   });
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
+  const sendMessage = async (e, file = null) => {
+    // Check if 'Enter' key is pressed and we have something inside 'newMessage' or a file is selected
+    if ((e && e.key === "Enter" && (newMessage || selectedFile)) || file) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        setIsUploading(true);
+        const fileToSend = file || selectedFile;
+
+        const formData = new FormData();
+        if (newMessage) {
+          formData.append('content', newMessage);
+        }
+        if (fileToSend) {
+          formData.append('file', fileToSend);
+        }
+        formData.append('chatId', selectedChat._id);
+
+        setNewMessage(""); // Clear message field before making API call
+        setSelectedFile(null); // Clear selected file
 
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
+          body: formData,
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
 
+        if (!data || !data._id) {
+          throw new Error("Invalid response data from server");
+        }
+
         socket.emit("new message", data);
-        setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
+        setIsUploading(false);
       } catch (error) {
+        console.error("Send message error:", error);
+        setIsUploading(false);
         return toast({
           title: "Error Occured!",
           description: "Failed to send the Message",
@@ -163,6 +198,122 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  const handleEmojiClick = (emojiObject) => {
+    setNewMessage((prevMessage) => prevMessage + emojiObject.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const toggleEmojiPicker = () => {
+    setShowEmojiPicker(!showEmojiPicker);
+  };
+
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+    // Auto-send file if no text message
+    if (!newMessage) {
+      sendMessage(null, file);
+    }
+  };
+
+  const handleScheduleMessage = async (scheduleData) => {
+    try {
+      console.log("Sending schedule request:", {
+        ...scheduleData,
+        chatId: selectedChat._id,
+      });
+
+      const response = await fetch("/api/scheduled-message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...scheduleData,
+          chatId: selectedChat._id,
+        }),
+      });
+
+      console.log("Response status:", response.status);
+
+      const responseData = await response.json();
+      console.log("Response data:", responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.message || "Failed to schedule message");
+      }
+
+      handleScheduleSuccess();
+      return responseData;
+    } catch (error) {
+      console.error("Schedule message error:", error);
+      throw error;
+    }
+  };
+
+  const openScheduler = () => {
+    setShowScheduler(true);
+  };
+
+  const handleScheduleSuccess = () => {
+    // Clear the message input after successful scheduling
+    setNewMessage("");
+    setShowScheduler(false);
+  };
+
+  const handleSmartReplySuggestions = (suggestions) => {
+    setSmartReplySuggestions(suggestions);
+    setShowSmartReplySuggestions(true);
+  };
+
+  const handleSmartReplySuggestionClick = (suggestion) => {
+    setNewMessage(suggestion);
+    // Auto-send the suggestion
+    setTimeout(() => {
+      const formData = new FormData();
+      formData.append('content', suggestion);
+      formData.append('chatId', selectedChat._id);
+
+      fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (!data || !data._id) {
+            throw new Error("Invalid response data from server");
+          }
+          socket.emit("new message", data);
+          setMessages([...messages, data]);
+          setNewMessage(""); // Clear the input after sending
+        })
+        .catch(error => {
+          console.error("Send suggestion error:", error);
+          toast({
+            title: "Error Occurred!",
+            description: "Failed to send the suggestion",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+            position: "bottom-right",
+            variant: "solid",
+          });
+        });
+    }, 100);
+  };
+
+  const handleAutoCompleteAccept = (suggestion) => {
+    setNewMessage(suggestion);
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -176,27 +327,30 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             display="flex"
             justifyContent={{ base: "space-between" }}
             alignItems="center"
+            color={colorMode === "light" ? "black" : "white"}
           >
             <IconButton
               display={{ base: "flex", md: "none" }}
               icon={<ArrowBackIcon />}
               onClick={() => setSelectedChat("")}
             />
-            {!selectedChat.isGroupChat ? (
-              <>
-                {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
-              </>
-            ) : (
-              <>
-                {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
-              </>
-            )}
+            <HStack>
+              {!selectedChat.isGroupChat ? (
+                <>
+                  {getSender(user, selectedChat.users)}
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                </>
+              ) : (
+                <>
+                  {selectedChat.chatName.toUpperCase()}
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                </>
+              )}
+            </HStack>
           </Text>
 
           <Box
@@ -204,7 +358,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg={colorMode === "light" ? "#E8E8E8" : "gray.700"}
             w="100%"
             h="100%"
             borderRadius="lg"
@@ -232,14 +386,53 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
 
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
+              <InputGroup>
+                <Input
+                  variant="filled"
+                  bg={colorMode === "light" ? "#E0E0E0" : "#4F4F4F"}
+                  placeholder="Enter a message.."
+                  value={newMessage}
+                  onChange={(e) => typingHandler(e)}
+                  pr="160px"
+                  color={colorMode === "light" ? "black" : "white"}
+                />
+                <InputRightElement width="160px">
+                  <Box display="flex" gap={1}>
+                    <FileAttachment
+                      onFileSelect={handleFileSelect}
+                      isUploading={isUploading}
+                    />
+                    <IconButton
+                      aria-label="Schedule message"
+                      icon={<span style={{ fontSize: "18px" }}>⏰</span>}
+                      size="sm"
+                      variant="ghost"
+                      onClick={openScheduler}
+                      _hover={{ bg: "gray.100" }}
+                    />
+                    <EmojiPickerComponent
+                      onEmojiClick={handleEmojiClick}
+                      isOpen={showEmojiPicker}
+                      onToggle={toggleEmojiPicker}
+                    />
+                  </Box>
+                </InputRightElement>
+              </InputGroup>
             </FormControl>
+
+            <MessageScheduler
+              isOpen={showScheduler}
+              onClose={() => setShowScheduler(false)}
+              onSchedule={handleScheduleMessage}
+              currentMessage={newMessage}
+            />
+
+            <SmartReplySuggestions
+              messages={messages}
+              onSuggestionClick={handleSmartReplySuggestionClick}
+              currentUser={user}
+              isVisible={true}
+            />
           </Box>
         </>
       ) : (
