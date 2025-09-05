@@ -1,0 +1,192 @@
+name: PR Live Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+
+jobs:
+  deploy-preview:
+    name: Deploy Live Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # 15 minutes max (5 min preview + setup time)
+    permissions:
+      contents: read
+      pull-requests: write  # Need write permission to comment on PRs
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Create .env file
+        run: |
+          echo "PORT=5000" >> .env
+          echo "MONGO_URI=mongodb://prchat_user:prchat_pass@mongodb:27017/prchat?authSource=prchat" >> .env
+          echo "JWT_SECRET=evaluation-secret-key" >> .env
+          echo "JWT_EXPIRE=2d" >> .env
+          echo "NODE_ENV=production" >> .env
+          
+      - name: Start Application
+        run: |
+          docker compose up -d --build
+          
+          # Wait for services to be ready
+          echo "Waiting for services to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:5000 2>/dev/null; then
+              echo "✅ Backend is ready!"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+          
+          for i in {1..30}; do
+            if curl -f http://localhost:3000 2>/dev/null; then
+              echo "✅ Frontend is ready!"
+              break
+            fi
+            echo "Waiting for frontend... ($i/30)"
+            sleep 2
+          done
+          
+          docker compose ps
+          
+      - name: Setup Cloudflare Tunnel
+        id: tunnel
+        run: |
+          # Download cloudflared
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared-linux-amd64
+          
+          # Start tunnel with retry logic (no account needed for quick tunnels!)
+          ./cloudflared-linux-amd64 tunnel --url http://localhost:3000 --no-autoupdate > tunnel.log 2>&1 &
+          TUNNEL_PID=$!
+          echo "tunnel_pid=$TUNNEL_PID" >> $GITHUB_OUTPUT
+          
+          # Wait for tunnel to be ready
+          echo "Waiting for tunnel to establish..."
+          for i in {1..30}; do
+            if grep -q 'https://.*\.trycloudflare\.com' tunnel.log 2>/dev/null; then
+              PREVIEW_URL=$(grep -o 'https://.*\.trycloudflare\.com' tunnel.log | head -1)
+              if [ -n "$PREVIEW_URL" ]; then
+                echo "✅ Tunnel established: $PREVIEW_URL"
+                echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+                break
+              fi
+            fi
+            echo "Waiting for tunnel... ($i/30)"
+            sleep 2
+          done
+          
+          # Check if we got a URL
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "❌ Failed to establish tunnel"
+            cat tunnel.log
+            exit 1
+          fi
+          
+      - name: Comment PR with Live Preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const preview_url = '${{ steps.tunnel.outputs.preview_url }}';
+            
+            if (!preview_url) {
+              console.log('No preview URL available');
+              return;
+            }
+            
+            // Find and delete previous comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComments = comments.filter(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🔴 Live Preview')
+            );
+            
+            for (const comment of botComments) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: comment.id,
+              });
+            }
+            
+            // Create new comment
+            const body = `## 🔴 Live Preview Available!
+            
+            ### 🌐 Preview URL: ${preview_url}
+            
+            Click the link above to access the live preview of this PR.
+            
+            ### 📝 Test Accounts:
+            | Email | Password |
+            |-------|----------|
+            | test1@example.com | password123 |
+            | test2@example.com | password123 |
+            | test3@example.com | password123 |
+            
+            ### ⚠️ Important Notes:
+            - Preview will remain active for 5 minutes
+            - First load may be slow (cold start)
+            - Powered by Cloudflare Tunnel (free, no account needed!)
+            - Backend API is accessible at the same URL
+            
+            ### 🔄 Refresh Preview:
+            If the preview stops working, close and reopen the PR to trigger a new deployment.
+            
+            ---
+            *🚀 Deployed at: ${new Date().toISOString()}*
+            *📊 PR #${{ github.event.pull_request.number }} by @${{ github.event.pull_request.user.login }}*`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+            
+      - name: Keep Preview Active
+        run: |
+          echo "Keeping preview active for 5 minutes..."
+          echo "Preview URL: ${{ steps.tunnel.outputs.preview_url }}"
+          echo "NO CLOUDFLARE ACCOUNT OR TOKENS NEEDED - Using free quick tunnel!"
+          
+          # Monitor and keep services and tunnel running
+          for i in {1..5}; do  # 5 minutes total
+            sleep 60
+            
+            # Check if tunnel is still running
+            if ! ps -p ${{ steps.tunnel.outputs.tunnel_pid }} > /dev/null 2>&1; then
+              echo "❌ Tunnel process died unexpectedly"
+              echo "Last tunnel logs:"
+              tail -20 tunnel.log
+              exit 1
+            fi
+            
+            # Check if services are still running
+            if ! curl -f http://localhost:3000 2>/dev/null; then
+              echo "Frontend stopped, restarting..."
+              docker compose restart frontend
+              sleep 5
+            fi
+            
+            if ! curl -f http://localhost:5000 2>/dev/null; then
+              echo "Backend stopped, restarting..."
+              docker compose restart backend
+              sleep 5
+            fi
+            
+            echo "✅ Preview active - $i minutes elapsed"
+            echo "   Tunnel PID: ${{ steps.tunnel.outputs.tunnel_pid }}"
+          done
+          
+          echo "Preview period complete. Shutting down..."
