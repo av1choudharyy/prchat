@@ -26,10 +26,17 @@ const accessChat = async (req, res) => {
     .populate("users", "-password") // Return 'users' without 'password'
     .populate("latestMessage"); // Return 'latestMessage'
 
-  chatExists = await User.populate(chatExists, {
-    path: "latestMessage.sender",
-    select: "name pic email", // Fields we want to populate
-  });
+  if (chatExists.length > 0) {
+    try {
+      chatExists = await User.populate(chatExists, {
+        path: "latestMessage.sender",
+        select: "name pic email", // Fields we want to populate
+      });
+    } catch (populateError) {
+      // If populate fails due to null latestMessage, continue without populating
+      console.log("Population error (likely null latestMessage):", populateError.message);
+    }
+  }
 
   // Check if chat exists, else create a new chat
   if (chatExists.length > 0) {
@@ -72,10 +79,16 @@ const fetchChats = async (req, res) => {
       .sort({ updatedAt: -1 })
       .exec();
 
-    results = await User.populate(results, {
-      path: "latestMessage.sender",
-      select: "name pic email",
-    });
+    // Only populate latestMessage.sender if latestMessage exists
+    try {
+      results = await User.populate(results, {
+        path: "latestMessage.sender",
+        select: "name pic email",
+      });
+    } catch (populateError) {
+      // If populate fails due to null latestMessage, continue without populating
+      console.log("Population error (likely null latestMessage):", populateError.message);
+    }
 
     return res.status(200).send(results);
   } catch (error) {
