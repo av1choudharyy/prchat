@@ -33,7 +33,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   // Reply state
   const [replyingTo, setReplyingTo] = useState(null);
 
-  // 🔍 Search state
+  //  Search state
   const [searchTerm, setSearchTerm] = useState("");
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
@@ -79,13 +79,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
     fetchMessages();
     selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
   }, [selectedChat]);
 
   useEffect(() => {
@@ -103,7 +101,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       }
     });
 
-    // eslint-disable-next-line
   });
 
   const sendMessage = async (e) => {
@@ -128,7 +125,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         socket.emit("new message", data);
         setMessages([...messages, data]);
-        setReplyingTo(null); // clear reply after sending
+        setReplyingTo(null); 
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -166,7 +163,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
-  // 🔍 Filtered messages for search
+  // Filtered messages for search
   const filteredMessages = messages.filter((m) =>
     m.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -246,10 +243,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 }}
               >
                 <ScrollableChat
-                  messages={filteredMessages} // 🔍 use filtered list
-                  isTyping={isTyping}
-                  setReplyingTo={setReplyingTo}
-                />
+            messages={filteredMessages}
+            isTyping={isTyping}
+           setReplyingTo={setReplyingTo}
+          searchTerm={searchTerm}
+            />
+
               </div>
             )}
 
