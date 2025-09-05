@@ -4,7 +4,7 @@ const { Message, Chat } = require("../models");
 // @route           POST /api/message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId, replyTo } = req.body; // added replyTo
+  const { content, chatId, replyTo } = req.body; // replyTo included
 
   if (!content || !chatId) {
     return res.status(400).json({
@@ -17,10 +17,10 @@ const sendMessage = async (req, res) => {
   try {
     // Create a new message
     let message = await Message.create({
-      sender: req.user._id, // Logged in user id
+      sender: req.user._id,
       content,
       chat: chatId,
-      replyTo: replyTo || null, // save reply if exists
+      replyTo: replyTo || null,
     });
 
     message = await (
@@ -36,6 +36,11 @@ const sendMessage = async (req, res) => {
         path: "replyTo",
         select: "content sender",
         populate: { path: "sender", select: "name pic", model: "User" },
+      })
+      .populate({
+        path: "reactions.user",
+        select: "name pic",
+        model: "User",
       });
 
     // Update latest message
@@ -64,6 +69,11 @@ const allMessages = async (req, res) => {
         path: "replyTo",
         select: "content sender",
         populate: { path: "sender", select: "name pic", model: "User" },
+      })
+      .populate({
+        path: "reactions.user",
+        select: "name pic",
+        model: "User",
       });
 
     res.status(200).json(messages);
@@ -77,4 +87,47 @@ const allMessages = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages };
+// @description     React to a Message
+// @route           POST /api/message/:messageId/react
+// @access          Protected
+const reactToMessage = async (req, res) => {
+  const { emoji } = req.body;
+
+  try {
+    let message = await Message.findById(req.params.messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Check if user already reacted
+    const existingReactionIndex = message.reactions.findIndex(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+
+    if (existingReactionIndex >= 0) {
+      if (message.reactions[existingReactionIndex].emoji === emoji) {
+        // Remove reaction if same emoji is clicked again
+        message.reactions.splice(existingReactionIndex, 1);
+      } else {
+        // Update reaction emoji
+        message.reactions[existingReactionIndex].emoji = emoji;
+      }
+    } else {
+      // Add new reaction
+      message.reactions.push({ user: req.user._id, emoji });
+    }
+
+    await message.save();
+
+    message = await message
+      .populate("sender", "name pic")
+      .populate("reactions.user", "name pic");
+
+    res.json(message);
+  } catch (error) {
+    console.error("React to message error:", error);
+    res.status(400).json({ message: "Failed to react to message" });
+  }
+};
+
+module.exports = { sendMessage, allMessages, reactToMessage };
