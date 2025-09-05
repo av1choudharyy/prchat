@@ -1,7 +1,8 @@
-import { Box } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import { useState } from "react";
 
 import { ChatState } from "../context/ChatProvider";
+import Clock from "../components/Clock";
 import { ChatBox, MyChats, SideDrawer } from "../components";
 
 const Chat = () => {
@@ -10,7 +11,14 @@ const Chat = () => {
 
   return (
     <div style={{ width: "100%" }}>
-      {user && <SideDrawer />}
+      {user && (
+        <>
+          <SideDrawer />
+          <Flex justify="center" mt={2}>
+            <Clock />
+          </Flex>
+        </>
+      )}
       <Box
         display="flex"
         justifyContent="space-between"

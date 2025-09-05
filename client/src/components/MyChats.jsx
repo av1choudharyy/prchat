@@ -58,7 +58,7 @@ const MyChats = ({ fetchAgain }) => {
       flexDir="column"
       alignItems="center"
       p={3}
-      bg="white"
+      bg={{ base: "white", _dark: "gray.800" }}
       w={{ base: "100%", md: "31%" }}
       borderRadius="lg"
       borderWidth="1px"
@@ -89,7 +89,7 @@ const MyChats = ({ fetchAgain }) => {
         display="flex"
         flexDir="column"
         p={3}
-        bg="#F8F8F8"
+        bg={{ base: "#F8F8F8", _dark: "gray.700" }}
         w="100%"
         h="100%"
         borderRadius="lg"
@@ -97,19 +97,24 @@ const MyChats = ({ fetchAgain }) => {
       >
         {chats ? (
           <Stack overflowY="scroll">
-            {chats.map((chat) => (
+            {[{ _id: "gemini-bot", isGroupChat: false, users: [{ _id: "gemini", name: "Gemini Assistant", pic: "/bot.svg" }] }, ...chats].map((chat) => (
               <Box
                 onClick={() => setSelectedChat(chat)}
                 cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
+                bg={selectedChat === chat ? "#319795" : { base: "#E8E8E8", _dark: "gray.600" }}
+                color={selectedChat === chat ? "white" : { base: "black", _dark: "gray.100" }}
                 px={3}
                 py={2}
                 borderRadius="lg"
                 key={chat._id}
               >
-                <Text>
-                  {!chat.isGroupChat
+                <Text display="flex" alignItems="center" gap="8px">
+                  {chat._id === "gemini-bot" ? (
+                    <>
+                      <img src="/bot.svg" alt="Gemini Assistant" width="18" height="18" />
+                      Gemini Assistant
+                    </>
+                  ) : !chat.isGroupChat
                     ? getSender(loggedUser, chat.users)
                     : chat.chatName}
                 </Text>

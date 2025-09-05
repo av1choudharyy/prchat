@@ -7,7 +7,7 @@ services:
     container_name: prchat-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "27018:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
@@ -25,13 +25,15 @@ services:
     container_name: prchat-backend
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "5001:5001"
     environment:
-      PORT: 5000
+      PORT: 5001
       MONGO_URI: mongodb://prchat_user:prchat_pass@mongodb:27017/prchat?authSource=prchat
       JWT_SECRET: development-secret-key
       JWT_EXPIRE: 2d
       NODE_ENV: development
+      FRONTEND_ORIGIN: http://localhost:3001
+      GEMINI_API_KEY: AIzaSyBl49HWTs95yGqjatAPZXHS4qDmb-YSfDU
     depends_on:
       - mongodb
     networks:
@@ -48,11 +50,13 @@ services:
     container_name: prchat-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
-      - WDS_SOCKET_PORT=3000
+      - PORT=3001
+      - WDS_SOCKET_PORT=3001
       - WATCHPACK_POLLING=true
       - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - REACT_APP_SOCKET_ENDPOINT=http://localhost:5001
     depends_on:
       - backend
     networks:

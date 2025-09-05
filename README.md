@@ -27,8 +27,9 @@ A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 docker-compose up --build
 
 # Access the application
-# Frontend: http://localhost:3000
-# Backend: http://localhost:5000
+# Frontend: http://localhost:3001
+# Backend: http://localhost:5001
+# MongoDB: localhost:27018
 ```
 
 ### Local Setup

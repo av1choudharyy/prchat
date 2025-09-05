@@ -57,3 +57,48 @@
   top: 0px;
   left: 18px;
 }
+
+/* Gemini Assistant ambient background */
+.gemini-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gemini-ambient .blob {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.25;
+  animation: float 18s ease-in-out infinite;
+}
+
+.gemini-ambient .blob.b1 {
+  background: radial-gradient(circle at 30% 30%, #93c5fd, #c7d2fe);
+  top: -60px;
+  left: -40px;
+}
+
+.gemini-ambient .blob.b2 {
+  background: radial-gradient(circle at 70% 60%, #a5b4fc, #bae6fd);
+  bottom: -80px;
+  right: -60px;
+  animation-duration: 22s;
+}
+
+.gemini-ambient .blob.b3 {
+  background: radial-gradient(circle at 50% 50%, #bfdbfe, #ddd6fe);
+  top: 40%;
+  left: 60%;
+  transform: translate(-50%, -50%);
+  animation-duration: 26s;
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -15px) scale(1.05); }
+  100% { transform: translate(0, 0) scale(1); }
+}
