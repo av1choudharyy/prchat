@@ -20,6 +20,7 @@ const MyChats = ({ fetchAgain }) => {
   const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
   const toast = useToast();
   const { onClose } = useDisclosure();
+  const { isOpen, onToggle } = useDisclosure();
 
   const fetchChats = async () => {
     try {
@@ -60,13 +61,15 @@ const MyChats = ({ fetchAgain }) => {
       p={3}
       bg="white"
       w={{ base: "100%", md: "31%" }}
+      maxW="calc(100% - 6px)"
       borderRadius="lg"
       borderWidth="1px"
     >
       <Box
         pb={3}
         px={3}
-        fontSize={{ base: "28px", md: "30px" }}
+        fontSize={{ base: "20px", md: "24px" }}
+        fontWeight="800"
         fontFamily="Work sans"
         display="flex"
         w="100%"
@@ -75,13 +78,32 @@ const MyChats = ({ fetchAgain }) => {
       >
         My Chats
         <GroupChatModal>
-          <Button
-            display="flex"
-            fontSize={{ base: "17px", md: "10px", lg: "17px" }}
-            rightIcon={<AddIcon />}
+          <Box
+            position="relative"
+            display="inline-block"
+            onMouseEnter={onToggle}
+            onMouseLeave={onToggle}
           >
-            New Group Chat
-          </Button>
+            <Button
+              display="flex"
+              alignItems="center"
+              px={isOpen ? 4 : 2} // expand padding on hover
+              transition="all 0.3s ease"
+              bg="white"
+              _hover={{ bg: "white" }}
+            >
+              <AddIcon />
+              <Box
+                ml={2}
+                maxW={isOpen ? "200px" : "0px"}
+                overflow="hidden"
+                whiteSpace="nowrap"
+                transition="all 0.3s ease"
+              >
+                New Group Chat
+              </Box>
+            </Button>
+          </Box>
         </GroupChatModal>
       </Box>
 
@@ -101,12 +123,21 @@ const MyChats = ({ fetchAgain }) => {
               <Box
                 onClick={() => setSelectedChat(chat)}
                 cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
+                bg={selectedChat === chat ? "#9cbcf8ff" : "white"}
                 color={selectedChat === chat ? "white" : "black"}
                 px={3}
                 py={2}
                 borderRadius="lg"
                 key={chat._id}
+                fontWeight="600"
+                boxShadow={selectedChat !== chat ? "" : "lg"}
+                transition="all 0.2s ease-in-out"
+                transform="translateY(0px)"
+                _hover={{
+                  boxShadow: "xl",
+                  transform: "translateY(-2px)",
+                  bg: selectedChat !== chat ? "#f0f4ff" : "#9cbcf8ff",
+                }}
               >
                 <Text>
                   {!chat.isGroupChat
