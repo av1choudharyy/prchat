@@ -74,12 +74,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
+
+    return () => {
+      socket.off("connected");
+      socket.off("typing");
+      socket.off("stop typing");
+      socket.disconnect();
+    };
     // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
     fetchMessages(); // Whenever users switches chat, call the function again
     selectedChatCompare = selectedChat;
+    
+    // Clear notifications for the selected chat
+    if (selectedChat) {
+      setNotification(notification.filter(notif => notif.chat._id !== selectedChat._id));
+    }
     // eslint-disable-next-line
   }, [selectedChat]);
 
@@ -87,19 +99,40 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
         !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat[0]._id
+        selectedChatCompare._id !== newMessageRecieved.chat._id
       ) {
-        if (!notification.includes(newMessageRecieved)) {
+        // Check if notification already exists by comparing message IDs
+        const notificationExists = notification.some(
+          (notif) => notif._id === newMessageRecieved._id
+        );
+        
+        if (!notificationExists) {
           setNotification([newMessageRecieved, ...notification]);
           setFetchAgain(!fetchAgain); // Fetch all the chats again
+          
+          // Show browser notification if permission is granted
+          if (Notification.permission === "granted") {
+            const notificationTitle = newMessageRecieved.chat.isGroupChat 
+              ? `New message in ${newMessageRecieved.chat.chatName}`
+              : `New message from ${newMessageRecieved.sender.name}`;
+            
+            new Notification(notificationTitle, {
+              body: newMessageRecieved.content,
+              icon: newMessageRecieved.sender.pic || '/favicon.ico',
+              tag: newMessageRecieved.chat._id
+            });
+          }
         }
       } else {
         setMessages([...messages, newMessageRecieved]);
       }
     });
 
+    return () => {
+      socket.off("message recieved");
+    };
     // eslint-disable-next-line
-  });
+  }, [notification, messages, selectedChatCompare, fetchAgain]);
 
   const sendMessage = async (e) => {
     // Check if 'Enter' key is pressed and we have something inside 'newMessage'
