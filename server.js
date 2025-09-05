@@ -46,6 +46,25 @@ const io = require("socket.io")(server, {
   },
   pingTimeout: 60 * 1000,
 });
+// make io available to request handlers/controllers
+app.set("io", io);
+io.on("connection", (socket) => {
+  socket.on("join chat", (chatId) => {
+    socket.join(chatId);
+  });
+
+  // optionally handle leaving:
+  socket.on("leave chat", (chatId) => {
+    socket.leave(chatId);
+  });
+
+  // optionally listen for client 'mark read' event so client can ask realtime instead of HTTP
+  socket.on("mark as read", async ({ chatId, userId }) => {
+    // server should validate userId via token in a production app; here it's optional
+    // You could call the same markMessagesRead logic (but need access to req.user)
+    // Simpler: client calls HTTP PUT /api/message/read/:chatId after joining
+  });
+});
 
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");

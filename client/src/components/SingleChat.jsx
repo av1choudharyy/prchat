@@ -64,6 +64,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         method: "GET",
         headers: {
           Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
         },
       });
       const data = await response.json();
@@ -71,7 +72,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       setMessages(data);
       setLoading(false);
 
-      socket.emit("join chat", selectedChat._id);
+      if (socket && selectedChat && selectedChat._id) {
+        socket.emit("join chat", selectedChat._id);
+      }
+
+      // mark other users' messages in this chat as read (server should emit 'message read')
+      try {
+        await fetch(`/api/message/read/${selectedChat._id}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (err) {
+        console.error("Failed to mark messages read:", err);
+      }
     } catch (error) {
       setLoading(false);
       return toast({
@@ -130,6 +146,24 @@ return () => {
     socket.off("message recieved");
   };
 }, [notification, setNotification, setFetchAgain]);
+useEffect(() => {
+  if (!socket) return;
+
+  const handleMessageRead = ({ chatId, messageIds }) => {
+    // only update if we're viewing the affected chat
+    if (!selectedChat || selectedChat._id !== chatId) return;
+
+    setMessages((prev) =>
+      prev.map((m) => (messageIds.includes(m._id) ? { ...m, isRead: true } : m))
+    );
+  };
+
+  socket.on("message read", handleMessageRead);
+
+  return () => {
+    socket.off("message read", handleMessageRead);
+  };
+}, [socket, selectedChat]);
 
 // ✅ Listen for pin/unpin events
 useEffect(() => {
