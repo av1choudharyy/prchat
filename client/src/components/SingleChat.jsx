@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowBackIcon, SearchIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
@@ -8,8 +8,8 @@ import {
   Spinner,
   Text,
   useToast,
-  InputGroup,
-  InputRightElement,
+  List,
+  ListItem,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -30,11 +30,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Reply state
+  // Reply feature
   const [replyingTo, setReplyingTo] = useState(null);
 
-  //  Search state
+  // Search feature
   const [searchTerm, setSearchTerm] = useState("");
+
+  // 🔮 Suggestions feature
+  const [suggestions, setSuggestions] = useState([]);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -45,18 +48,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     try {
       setLoading(true);
-
       const response = await fetch(`/api/message/${selectedChat._id}`, {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { Authorization: `Bearer ${user.token}` },
       });
       const data = await response.json();
-
       setMessages(data);
       setLoading(false);
-
       socket.emit("join chat", selectedChat._id);
     } catch (error) {
       setLoading(false);
@@ -100,7 +98,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setMessages([...messages, newMessageRecieved]);
       }
     });
-
   });
 
   const sendMessage = async (e) => {
@@ -108,7 +105,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("stop typing", selectedChat._id);
       try {
         setNewMessage("");
-
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
@@ -125,7 +121,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         socket.emit("new message", data);
         setMessages([...messages, data]);
-        setReplyingTo(null); 
+        setReplyingTo(null);
+        setSuggestions([]); // clear suggestions
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -141,7 +138,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
 
   const typingHandler = (e) => {
-    setNewMessage(e.target.value);
+    const value = e.target.value;
+    setNewMessage(value);
+
+    // Suggestion logic
+    if (value.trim().length > 1) {
+      const matched = messages
+        .map((m) => m.content)
+        .filter((c) => c.toLowerCase().includes(value.toLowerCase()))
+        .slice(0, 5); // limit 5 suggestions
+      setSuggestions(matched);
+    } else {
+      setSuggestions([]);
+    }
+
     if (!socketConnected) return;
 
     if (!typing) {
@@ -151,22 +161,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     let lastTypingTime = new Date().getTime();
     let timerLength = 3000;
-
     setTimeout(() => {
       let timeNow = new Date().getTime();
       let timeDiff = timeNow - lastTypingTime;
-
       if (timeDiff >= timerLength && typing) {
         socket.emit("stop typing", selectedChat._id);
         setTyping(false);
       }
     }, timerLength);
   };
-
-  // Filtered messages for search
-  const filteredMessages = messages.filter((m) =>
-    m.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <>
@@ -204,6 +207,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
           </Text>
 
+          {/* 🔍 Search box */}
+          <Box mb={2}>
+            <Input
+              placeholder="Search messages..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              bg="white"
+            />
+          </Box>
+
           <Box
             display="flex"
             flexDir="column"
@@ -215,24 +228,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             borderRadius="lg"
             overflowY="hidden"
           >
-            {/* 🔍 Search Bar */}
-            <InputGroup mb={3}>
-              <Input
-                placeholder="Search messages..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <InputRightElement children={<SearchIcon color="gray.400" />} />
-            </InputGroup>
-
             {loading ? (
-              <Spinner
-                size="xl"
-                w="20"
-                h="20"
-                alignSelf="center"
-                margin="auto"
-              />
+              <Spinner size="xl" w="20" h="20" alignSelf="center" margin="auto" />
             ) : (
               <div
                 style={{
@@ -243,16 +240,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 }}
               >
                 <ScrollableChat
-            messages={filteredMessages}
-            isTyping={isTyping}
-           setReplyingTo={setReplyingTo}
-          searchTerm={searchTerm}
-            />
-
+                  messages={
+                    searchTerm
+                      ? messages.filter((m) =>
+                          m.content
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase())
+                        )
+                      : messages
+                  }
+                  isTyping={isTyping}
+                  setReplyingTo={setReplyingTo}
+                  searchTerm={searchTerm}
+                />
               </div>
             )}
 
-            {/* Reply Preview Box */}
+            {/* Reply Preview */}
             {replyingTo && (
               <Box
                 bg="#f0f0f0"
@@ -294,15 +298,39 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 onChange={(e) => typingHandler(e)}
               />
             </FormControl>
+
+            {/* 🔮 Suggestion Box */}
+            {suggestions.length > 0 && (
+              <Box
+                bg="white"
+                borderRadius="md"
+                mt={1}
+                boxShadow="md"
+                maxH="150px"
+                overflowY="auto"
+                zIndex={1000}
+              >
+                <List spacing={1}>
+                  {suggestions.map((s, idx) => (
+                    <ListItem
+                      key={idx}
+                      p={2}
+                      _hover={{ bg: "gray.100", cursor: "pointer" }}
+                      onClick={() => {
+                        setNewMessage(s);
+                        setSuggestions([]);
+                      }}
+                    >
+                      {s}
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
           </Box>
         </>
       ) : (
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          h="100%"
-        >
+        <Box display="flex" alignItems="center" justifyContent="center" h="100%">
           <Text fontSize="3xl" pb="3" fontFamily="Work sans">
             Click on a user to start chatting
           </Text>
@@ -313,4 +341,3 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 };
 
 export default SingleChat;
-
