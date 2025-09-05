@@ -15,6 +15,7 @@ Additional features added
 - Reply to message
 - Search messages (frontend)
 - Suggestions while typing
+- Emoji reaction on chat
 
 ## Tech Stack
 
