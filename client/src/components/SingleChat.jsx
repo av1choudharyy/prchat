@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { ArrowBackIcon, ArrowForwardIcon } from "@chakra-ui/icons";
+
+import { BsEmojiSmile } from "react-icons/bs"; // Emoji icon
+
+
 import axios from "axios";
 import {
   Box,
@@ -9,7 +13,12 @@ import {
   Spinner,
   Text,
   useToast,
-  Button
+  Button,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  SimpleGrid
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -37,6 +46,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [fontStyle, setFontStyle] = useState("normal"); // "bold", "italic", "underline"
+  const emojiOptions = [
+  "😀", "😂", "😍", "👍", "🔥",
+  "😢", "🎉", "🤔", "🙌", "😎",
+  "🥳", "😇", "😡", "😭", "👏",
+];
+
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -146,12 +161,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
 const onReact = async (messageId, emoji) => {
   try {
-    const { data: updatedMessage } = await axios.post(
-      "/api/message/react",
-      { messageId, emoji },
-      { headers: { Authorization: `Bearer ${user.token}` } }
+    const { data: updatedMessage } = await axios.put(
+      `/api/message/${messageId}/react`, // ✅ matches backend route
+      { emoji },                         // ✅ matches backend body
+      {
+        headers: {
+          Authorization: `Bearer ${user.token}`, // ✅ ensures protected access
+        },
+      }
     );
 
+    // ✅ Update local message state with the new reaction
     setMessages((prevMessages) =>
       prevMessages.map((msg) =>
         msg._id === updatedMessage._id ? updatedMessage : msg
@@ -255,35 +275,25 @@ const onReact = async (messageId, emoji) => {
                 </>
               )}
             </Box>
-            <Box display="flex" justifyContent="flex-end" mb={2}>
+<Box display="flex" alignItems="center" justifyContent="flex-end" mb={2} gap={2}>
+  <Text fontWeight="semibold">Font Style:</Text>
   <select
     value={fontStyle}
     onChange={(e) => setFontStyle(e.target.value)}
     style={{
       padding: "6px",
       borderRadius: "6px",
-      fontFamily:
-        fontStyle === "monospace"
-          ? "monospace"
-          : fontStyle === "small-caps"
-          ? "inherit"
-          : "inherit",
-      fontStyle: fontStyle === "italic" || fontStyle === "oblique" ? fontStyle : "normal",
       fontWeight: fontStyle === "bold" ? "bold" : "normal",
+      fontStyle: fontStyle === "italic" ? "italic" : "normal",
       textDecoration: fontStyle === "underline" ? "underline" : "none",
-      fontVariant: fontStyle === "small-caps" ? "small-caps" : "normal",
     }}
   >
     <option value="normal">Normal</option>
     <option value="bold">Bold</option>
     <option value="italic">Italic</option>
     <option value="underline">Underline</option>
-    <option value="oblique">Oblique</option>
-    <option value="monospace">Monospace</option>
-    <option value="small-caps">Small Caps</option>
   </select>
 </Box>
-
 <FormControl maxW="300px" display="flex" gap="6px">
   <Input
     placeholder="Search message..."
@@ -365,7 +375,39 @@ const onReact = async (messageId, emoji) => {
   ))}
 </Box>
             <FormControl mt="3" isRequired>
-              <Box display="flex" gap="8px">
+              <Box display="flex" gap="8px" alignItems="center">
+                
+                {/* Emoji Picker */}
+                <Popover placement="top-start">
+                  <PopoverTrigger>
+                    <IconButton
+                      icon={<BsEmojiSmile />}
+                      variant="ghost"
+                      aria-label="Choose emoji"
+                      fontSize="xl"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent width="220px">
+                    <PopoverBody>
+                      <SimpleGrid columns={5} spacing={2}>
+                        {emojiOptions.map((emoji) => (
+                          <Text
+                            key={emoji}
+                            fontSize="xl"
+                            cursor="pointer"
+                            onClick={() => setNewMessage((prev) => prev + emoji)}
+                            _hover={{ transform: "scale(1.2)" }}
+                            transition="transform 0.2s"
+                          >
+                            {emoji}
+                          </Text>
+                        ))}
+                      </SimpleGrid>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+            
+                {/* Message Input */}
                 <Input
                   variant="filled"
                   bg="#E0E0E0"
@@ -374,6 +416,8 @@ const onReact = async (messageId, emoji) => {
                   onChange={typingHandler}
                   onKeyDown={sendMessage}
                 />
+            
+                {/* Send Button */}
                 <IconButton
                   colorScheme="blue"
                   icon={<ArrowForwardIcon />}
