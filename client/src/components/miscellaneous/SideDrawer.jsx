@@ -53,6 +53,7 @@ const SideDrawer = ({ colorMode, toggleColorMode }) => {
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
+    localStorage.removeItem("selectedChat");
     navigate("/");
   };
 
