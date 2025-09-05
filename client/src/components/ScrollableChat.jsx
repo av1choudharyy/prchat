@@ -13,7 +13,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-const ScrollableChat = ({ messages, isTyping }) => {
+const ScrollableChat = ({ messages, isTyping, setReplyingTo }) => {
   const { user } = ChatState();
   const scrollRef = useRef();
 
@@ -32,7 +32,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
         className="hide-scrollbar"
         style={{ overflowX: "hidden", overflowY: "auto" }}
       >
-        {/* If something inside the messages, render the messages */}
+        {/* Render messages */}
         {messages &&
           messages.map((message, index) => (
             <div
@@ -62,7 +62,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
+              <div
                 style={{
                   backgroundColor: `${
                     message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
@@ -70,7 +70,6 @@ const ScrollableChat = ({ messages, isTyping }) => {
                   borderRadius: "20px",
                   padding: "5px 15px",
                   maxWidth: "75%",
-
                   marginLeft: isSameSenderMargin(
                     messages,
                     message,
@@ -82,8 +81,24 @@ const ScrollableChat = ({ messages, isTyping }) => {
                     : 10,
                 }}
               >
+                {/* If this message is a reply, show reply snippet */}
+                {message.replyTo && (
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#444",
+                      borderLeft: "2px solid #999",
+                      paddingLeft: "6px",
+                      marginBottom: "3px",
+                    }}
+                  >
+                    Replying to: {message.replyTo.sender?.name} — "
+                    {message.replyTo.content}"
+                  </div>
+                )}
+
                 {message.content}
-              </span>
+              </div>
 
               {/* Copy Button */}
               <Tooltip label="Copy message" hasArrow>
@@ -95,6 +110,17 @@ const ScrollableChat = ({ messages, isTyping }) => {
                   onClick={() => handleCopy(message.content)}
                 />
               </Tooltip>
+
+              {/* Reply Button */}
+              <Tooltip label="Reply" hasArrow>
+                <IconButton
+                  aria-label="Reply Message"
+                  icon={<span style={{ fontSize: "14px" }}>↩️</span>}
+                  size="xs"
+                  ml={2}
+                  onClick={() => setReplyingTo(message)}
+                />
+              </Tooltip>
             </div>
           ))}
       </div>
@@ -102,9 +128,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
         <div style={{ width: "70px", marginTop: "5px" }}>
           <Lottie animationData={typingAnimation} loop={true} />
         </div>
-      ) : (
-        <></>
-      )}
+      ) : null}
     </>
   );
 };
