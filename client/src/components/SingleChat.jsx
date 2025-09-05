@@ -33,10 +33,18 @@ let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const quickReplies = [
+  { label: "Hi 👋", value: "Hi 👋" },
+  { label: "Gm ☀️", value: "Gm ☀️" },
+  { label: "Gn 🌙", value: "Gn 🌙" },
   { label: "Okay 👍", value: "Okay 👍" },
   { label: "Thank you 🙏", value: "Thank you 🙏" },
   { label: "Bye 👋", value: "Bye 👋" },
-  ];
+  { label: "😂", value: "😂" },
+  { label: "❤️", value: "❤️" },
+  { label: "🔥", value: "🔥" },
+  { label: "😎", value: "😎" },
+  { label: "🤔", value: "🤔" },
+];
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -290,6 +298,35 @@ const onReact = async (messageId, emoji) => {
   </select>
 </Box>
 <FormControl maxW="300px" display="flex" gap="6px">
+  {/* Emoji Picker */}
+                <Popover placement="top-start">
+                  <PopoverTrigger>
+                    <IconButton
+                      icon={<BsEmojiSmile />}
+                      variant="ghost"
+                      aria-label="Choose emoji"
+                      fontSize="xl"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent width="220px">
+                    <PopoverBody>
+                      <SimpleGrid columns={5} spacing={2}>
+                        {emojiOptions.map((emoji) => (
+                          <Text
+                            key={emoji}
+                            fontSize="xl"
+                            cursor="pointer"
+                            onClick={() => setSearchTerm((prev) => prev + emoji)}
+                            _hover={{ transform: "scale(1.2)" }}
+                            transition="transform 0.2s"
+                          >
+                            {emoji}
+                          </Text>
+                        ))}
+                      </SimpleGrid>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
   <Input
     placeholder="Search message..."
     value={searchTerm}
