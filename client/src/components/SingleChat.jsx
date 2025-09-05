@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -8,7 +8,11 @@ import {
   Spinner,
   Text,
   useToast,
+  Button,
 } from "@chakra-ui/react";
+import { BsEmojiSmile } from "react-icons/bs";
+import { AiOutlinePaperClip } from "react-icons/ai";
+import EmojiPicker from "emoji-picker-react";
 import io from "socket.io-client";
 
 import { ChatState } from "../context/ChatProvider";
@@ -17,7 +21,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5000";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
@@ -27,20 +31,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [file, setFile] = useState(null);
 
+  const fileInputRef = useRef();
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
 
+  // Fetch messages
   const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
-    if (!selectedChat) {
-      return;
-    }
+    if (!selectedChat) return;
 
     try {
       setLoading(true);
-
       const response = await fetch(`/api/message/${selectedChat._id}`, {
         method: "GET",
         headers: {
@@ -67,18 +71,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
+  // Socket setup
   useEffect(() => {
     socket = io(ENDPOINT);
     socket.emit("setup", user);
     socket.on("connected", () => setSocketConnected(true));
-
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
     // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
+    fetchMessages();
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
@@ -91,39 +95,39 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+          setFetchAgain(!fetchAgain);
         }
       } else {
         setMessages([...messages, newMessageRecieved]);
       }
     });
-
-    // eslint-disable-next-line
   });
 
-  const sendMessage = async () => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
+  // Send Message (text or file)
+  const sendMessage = async (e) => {
+    if ((e.key === "Enter" && newMessage) || file) {
       socket.emit("stop typing", selectedChat._id);
+
       try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+        const formData = new FormData();
+        formData.append("chatId", selectedChat._id);
+        if (newMessage) formData.append("content", newMessage);
+        if (file) formData.append("file", file);
+
+        setNewMessage("");
+        setFile(null);
 
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
+          body: formData,
         });
-        const data = await response.json();
 
+        const data = await response.json();
         socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
+        setMessages([...messages, data]);
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -138,10 +142,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
+  // Typing handler
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
-
-    // Typing Indicator Logic
     if (!socketConnected) return;
 
     if (!typing) {
@@ -230,15 +233,49 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 <ScrollableChat messages={messages} isTyping={isTyping} />
               </div>
             )}
-
             <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
+              <Box display="flex" alignItems="center" gap="2">
+                {/* Emoji Button */}
+                <IconButton
+                  icon={<BsEmojiSmile />}
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                />
+                {showEmojiPicker && (
+                  <Box position="absolute" bottom="60px" zIndex="10">
+                    <EmojiPicker
+                      onEmojiClick={(emojiObj) =>
+                        setNewMessage((prev) => prev + emojiObj.emoji)
+                      }
+                    />
+                  </Box>
+                )}
+
+                {/* File Upload */}
+                <IconButton
+                  icon={<AiOutlinePaperClip />}
+                  onClick={() => fileInputRef.current.click()}
+                />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={(e) => setFile(e.target.files[0])}
+                />
+
+               
+                <Input
+                  variant="filled"
+                  bg="#E0E0E0"
+                  placeholder="Enter a message.."
+                  value={newMessage}
+                  onChange={(e) => typingHandler(e)}
+                />
+
+                {/* Send Button */}
+                <Button onClick={(e) => sendMessage(e)} colorScheme="blue">
+                  Send
+                </Button>
+              </Box>
             </FormControl>
           </Box>
         </>
