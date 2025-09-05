@@ -1,6 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const path = require("path");
+const cors=require('cors')
 
 const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
@@ -8,7 +9,20 @@ const { notFound, errorHandler } = require("./middleware");
 
 const app = express(); // Use express js in our app
 app.use(express.json()); // Accept JSON data
+
+// Handle preflight OPTIONS requests globally
 dotenv.config({ path: path.join(__dirname, "./.env") }); // Specify a custom path if your file containing environment variables is located elsewhere
+app.use(express.json());
+
+// CORS middleware
+app.use(
+  cors({
+    origin: "http://localhost:3000", // your React app
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
+app.options("*", cors()); // handle preflight requests
 connectToMongoDB(); // Connect to Database
 
 app.use("/api/user", userRoutes);

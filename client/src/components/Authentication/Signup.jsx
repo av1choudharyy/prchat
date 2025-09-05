@@ -63,11 +63,12 @@ const Signup = () => {
             body: data,
           }
         );
-        const json = await response.json();
+        const resdata = await response.json();
+        console.log(resdata)
 
         setCredentials({
           ...credentials,
-          [e.target.name]: json.secure_url.toString(),
+          [e.target.name]: resdata.secure_url.toString(),
         });
         setLoading(false);
       } catch (error) {

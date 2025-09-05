@@ -1,5 +1,5 @@
 const { Message, Chat } = require("../models");
-// const User = require("../models/userModel");
+
 
 // @description     Create New Message
 // @route           POST /api/Message/
@@ -22,10 +22,7 @@ const sendMessage = async (req, res) => {
     repliedToMessage: repliedToMessageId || null, // Add the repliedToMessageId
   };
 
-  // if (repliedToMessageId) {
-  //   newMessage.repliedToMessage = repliedToMessageId;
-  // }
-
+  
      try {
     let message = await Message.create(newMessage);
 
@@ -45,47 +42,7 @@ const sendMessage = async (req, res) => {
           select: "name",
         },
       });
-//     message = await message.populate("sender", "name pic");
-//     message = await message.populate("chat");
-//      message = await message.populate("repliedToMessage");
-
-    // Populate the replied message before sending it back
-//     if (message.repliedToMessage) {
-//       message = await message.populate({
-//         path: 'repliedToMessage',
-//         model: 'Message',
-//         select: 'content sender',
-//         populate: {
-//           path: 'sender',
-//           model: 'User',
-//           select: 'name',
-//         }
-//       });
-//     }
-
-      
-//     message = await User.populate(message, {
-//       path: "chat.users",
-//       select: "name pic email",
-//     });
-
-  // try {
-  //   // Create a new message
-  //   let message = await Message.create({
-  //     sender: req.user._id, // Logged in user id,
-  //     content,
-  //     chat: chatId,
-  //     repliedToMessageId: repliedToMessageId || null,
-  //   });
-
-  //   message = await (
-  //     await message.populate("sender", "name pic")
-  //   ).populate({
-  //     path: "chat",
-  //     select: "chatName isGroupChat users",
-  //     model: "Chat",
-  //     populate: { path: "users", select: "name email pic", model: "User" },
-  //   });
+//    
 
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });

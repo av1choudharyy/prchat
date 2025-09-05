@@ -18,7 +18,7 @@ import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://backend:5000";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {

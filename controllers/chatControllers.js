@@ -6,7 +6,6 @@ const { Chat, User } = require("../models");
 const accessChat = async (req, res) => {
   const { userId } = req.body;
 
-  // If chat with 'userId' not present in request
   if (!userId) {
     return res.status(400).json({
       success: false,
@@ -16,19 +15,18 @@ const accessChat = async (req, res) => {
   }
 
   let chatExists = await Chat.find({
-    isGroupChat: false, // 'isGroupChat' will be false as it is one-to-one chat
-    // logged in user's id and the user id we sent should be same in the 'users' array
+    isGroupChat: false, 
     $and: [
       { users: { $elemMatch: { $eq: req.user._id } } },
       { users: { $elemMatch: { $eq: userId } } },
     ],
   })
-    .populate("users", "-password") // Return 'users' without 'password'
-    .populate("latestMessage"); // Return 'latestMessage'
+    .populate("users", "-password") 
+    .populate("latestMessage"); 
 
   chatExists = await User.populate(chatExists, {
     path: "latestMessage.sender",
-    select: "name pic email", // Fields we want to populate
+    select: "name pic email", 
   });
 
   // Check if chat exists, else create a new chat

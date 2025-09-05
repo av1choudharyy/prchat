@@ -1,6 +1,4 @@
 import { Box, Text, useToast, Button } from '@chakra-ui/react';
-import { ChatState } from '../context/ChatProvider';
-import React from 'react'
 
 const ChatBubble = ({ message, isSelf, setReplyToMessage }) => {
     const toast = useToast();
@@ -38,7 +36,7 @@ const ChatBubble = ({ message, isSelf, setReplyToMessage }) => {
       }}
       position="relative"
     >
-      {/* Conditionally render the reply preview */}
+      
       {message.repliedToMessage && (
         <Box p={2} mb={2} bg={message.repliedToMessage.sender._id === message.sender._id ? "rgba(185, 245, 208, 0.5)" : "rgba(190, 227, 248, 0.5)"}
          borderRadius="md" borderLeft="4px" borderColor={message.repliedToMessage.sender._id === message.sender._id ? "#38A169" : "#4299E1"}
@@ -54,7 +52,7 @@ const ChatBubble = ({ message, isSelf, setReplyToMessage }) => {
       
       <Text>{message.content}</Text>
       
-      {/* Action buttons */}
+     
       <Box 
         position="absolute"
         top="50%"
