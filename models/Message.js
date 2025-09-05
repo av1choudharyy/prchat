@@ -6,8 +6,18 @@ const MessageSchema = mongoose.Schema(
     content: { type: String, trim: true },
     chat: [{ type: mongoose.Schema.Types.ObjectId, ref: "Chat" }],
 
-    // NEW: Reply-to field
-    replyTo: { type: mongoose.Schema.Types.ObjectId, ref: "Message", default: null },
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
+
+    reactions: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        emoji: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );
