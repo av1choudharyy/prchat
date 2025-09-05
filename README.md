@@ -1,23 +1,10 @@
 # PRChat - Real-time Chat Application
 
-A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 
-## Features
+## Quick Replies
 
-- Real-time messaging
-- Group chats
-- Direct messages  
-- User authentication
-- Typing indicators
-- Message notifications
-- File and image attachments with drag-and-drop support
+<img width="1263" height="485" alt="image" src="https://github.com/user-attachments/assets/b121eb84-b699-4b78-9ffe-a9bba1eebd52" />
 
-## Tech Stack
-
-**Frontend:** React, Chakra UI, Socket.io-client  
-**Backend:** Node.js, Express, Socket.io  
-**Database:** MongoDB  
-**Authentication:** JWT
 
 ## File Attachment Features
 
@@ -44,67 +31,29 @@ A real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 6. Click on images to view them in full-screen mode
 7. Click the download icon on file cards to download
 
-## Getting Started
+   <img width="1836" height="1002" alt="image" src="https://github.com/user-attachments/assets/0d6f6cd4-3c52-445b-8968-4576f1c2ec6a" />
 
-### Using Docker (Recommended)
+## Emojis
 
-```bash
-# Start all services
-docker-compose up --build
+<img width="1273" height="803" alt="image" src="https://github.com/user-attachments/assets/b1329e4a-5311-4a2a-b0d1-544aa0029141" />
 
-# Access the application
-# Frontend: http://localhost:3000
-# Backend: http://localhost:5000
-```
+## Dark Mode
 
-### Local Setup
+<img width="1302" height="630" alt="image" src="https://github.com/user-attachments/assets/7bb5c125-aa9e-4e84-be22-3d464dc02662" />
 
-1. **Install dependencies**
-```bash
-npm install
-cd client && npm install && cd ..
-```
+## Message Schedular
 
-2. **Environment Setup**
-```bash
-# Create .env file with:
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRE=2d
-NODE_ENV=development
-```
+<img width="1310" height="757" alt="image" src="https://github.com/user-attachments/assets/c16e39d2-2535-4025-b625-97d758e96b2a" />
 
-3. **Run the application**
-```bash
-# Terminal 1 - Backend
-npm run server
+## Timestamp for messages
 
-# Terminal 2 - Frontend  
-npm run client
-```
+<img width="1170" height="312" alt="image" src="https://github.com/user-attachments/assets/33e429bd-e129-4def-830b-2dd9969dd84a" />
 
-## Test Users
 
-Pre-configured test accounts:
-- test1@example.com / password123
-- test2@example.com / password123
-- test3@example.com / password123
-- guest@example.com / 123456
 
-## Project Structure
 
-```
-prchat/
-├── client/          # React frontend
-├── controllers/     # Express controllers
-├── middleware/      # Auth middleware
-├── models/          # Database models
-├── routes/          # API routes
-├── server.js        # Express server
-└── docker-compose.yml
-```
 
-## License
+
+
 
 MIT
