@@ -36,9 +36,18 @@ const Home = () => {
         borderRadius="lg"
         borderWidth="1px"
       >
-        <Text fontSize="4xl" fontFamily="Work sans" textAlign="center">
-          PRChat
-        </Text>
+        <Text
+  fontSize="4xl"
+  fontFamily="Work Sans"
+  textAlign="center"
+  fontWeight="extrabold"
+  color="darkblue"
+  textShadow="2px 2px 6px rgba(0,0,0,0.3)"
+>
+  PR CHAT
+</Text>
+
+
       </Box>
 
       <Box bg="white" w="100%" p={4} borderRadius="lg" borderWidth="1px">

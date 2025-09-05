@@ -91,7 +91,7 @@ const GroupChatModal = ({ children }) => {
       const data = await response.json();
 
       setChats([data, ...chats]);
-      onClose(); // Close the modal
+      onClose();
 
       return toast({
         title: "New Group Chat Created!",
@@ -141,33 +141,42 @@ const GroupChatModal = ({ children }) => {
 
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent bg="#2C2F48" color="white">
           <ModalHeader
             display="flex"
             justifyContent="center"
             fontSize="35px"
             fontFamily="Work sans"
+            color="white"
           >
             Create Group Chat
           </ModalHeader>
-          <ModalCloseButton />
+          <ModalCloseButton color="white" />
           <ModalBody display="flex" flexDir="column" alignItems="center">
-            <FormControl>
-              <Input
-                placeholder="Chat Name"
-                mb={3}
-                onChange={(e) => setGroupChatName(e.target.value)}
-              />
-            </FormControl>
-            <FormControl>
-              <Input
-                placeholder="Add Users eg: Rohit, Piyush, Aman"
-                mb={3}
-                onChange={(e) => handleSearch(e.target.value)}
-              />
-            </FormControl>
+           <FormControl>
+  <Input
+    placeholder="Enter Group Name"
+    mb={3}
+    onChange={(e) => setGroupChatName(e.target.value)}
+    bg="white"
+    color="black"
+    border="1px solid #ccc"
+    _placeholder={{ color: "gray.600" }}  // 👈 Darker gray for visibility
+  />
+</FormControl>
+<FormControl>
+  <Input
+    placeholder="Enter names to be added..."
+    mb={3}
+    onChange={(e) => handleSearch(e.target.value)}
+    bg="white"
+    color="black"
+    border="1px solid #ccc"
+    _placeholder={{ color: "gray.600" }}  // 👈 Darker gray for visibility
+  />
+</FormControl>
 
-            {/* Selected users */}
+
             <Box display="flex" flexWrap="wrap" w="100%">
               {selectedUsers.map((user) => (
                 <UserBadgeItem
@@ -179,7 +188,7 @@ const GroupChatModal = ({ children }) => {
             </Box>
 
             {loading ? (
-              <div>Loading</div>
+              <div style={{ color: "white" }}>Loading...</div>
             ) : (
               searchResults?.map((user) => (
                 <UserListItem

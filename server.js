@@ -6,17 +6,19 @@ const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
 
-const app = express(); // Use express js in our app
-app.use(express.json()); // Accept JSON data
-dotenv.config({ path: path.join(__dirname, "./.env") }); // Specify a custom path if your file containing environment variables is located elsewhere
-connectToMongoDB(); // Connect to Database
+const app = express();
+app.use(express.json());
+dotenv.config({ path: path.join(__dirname, "./.env") });
 
+// Connect to Database
+connectToMongoDB();
+
+// API Routes
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 
 // --------------------------DEPLOYMENT------------------------------
-
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "./client/build")));
 
@@ -30,16 +32,18 @@ if (process.env.NODE_ENV === "production") {
     res.send("API is running");
   });
 }
-
 // --------------------------DEPLOYMENT------------------------------
 
-app.use(notFound); // Handle invalid routes
+// Error Handlers
+app.use(notFound);
 app.use(errorHandler);
 
+// Server Listen
 const server = app.listen(process.env.PORT, () =>
   console.log(`Server started on PORT ${process.env.PORT}`)
 );
 
+// --------------------------SOCKET.IO------------------------------
 const io = require("socket.io")(server, {
   cors: {
     origin: "http://localhost:3000",
@@ -65,9 +69,11 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+    let chat = newMessageRecieved.chat;
 
-    if (!chat.users) return console.log("chat.users not defined");
+    if (!chat || !chat.users) {
+      return console.log("chat.users not defined");
+    }
 
     chat.users.forEach((user) => {
       if (user._id === newMessageRecieved.sender._id) return;
@@ -76,7 +82,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.off("setup", () => {
+  socket.off("setup", (userData) => {
     console.log("User Disconnected");
     socket.leave(userData._id);
   });

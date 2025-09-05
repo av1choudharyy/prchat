@@ -11,7 +11,6 @@ const {
 const registerUser = async (req, res) => {
   const { name, email, password, pic } = req.body;
 
-  // Check if any of them is undefined
   if (!name || !email || !password) {
     return res.status(400).json({
       success: false,
@@ -20,7 +19,6 @@ const registerUser = async (req, res) => {
     });
   }
 
-  // Check if user already exists in our DB
   const userExists = await User.findOne({ email }).exec();
 
   if (userExists) {
@@ -31,9 +29,7 @@ const registerUser = async (req, res) => {
     });
   }
 
-  // Register and store the new user
   const userCreated = await User.create(
-    // If there is no picture present, remove 'pic'
     pic === undefined || pic.length === 0
       ? {
           name,
@@ -69,12 +65,11 @@ const registerUser = async (req, res) => {
 };
 
 // @description     Auth the user
-// @route           POST /api/users/login
+// @route           POST /api/user/login
 // @access          Public
 const authUser = async (req, res) => {
   const { email, password } = req.body;
 
-  // Check if any of them is undefined
   if (!email || !password) {
     return res.status(400).json({
       success: false,
@@ -83,10 +78,8 @@ const authUser = async (req, res) => {
     });
   }
 
-  // Check if user already exists in our DB
   const userExists = await User.findOne({ email }).exec();
 
-  // If user exists and password is verified
   if (userExists && (await verifyPassword(password, userExists.password))) {
     return res.status(200).json({
       success: true,
@@ -111,7 +104,6 @@ const authUser = async (req, res) => {
 // @route           GET /api/user?search=
 // @access          Public
 const allUsers = async (req, res) => {
-  // Keyword contains search results
   const keyword = req.query.search
     ? {
         $or: [
@@ -121,7 +113,6 @@ const allUsers = async (req, res) => {
       }
     : {};
 
-  // Find and return users except current user
   const userExists = await User.find(keyword)
     .find({ _id: { $ne: req.user._id } })
     .exec();
@@ -129,4 +120,39 @@ const allUsers = async (req, res) => {
   return res.status(200).json(userExists);
 };
 
-module.exports = { registerUser, authUser, allUsers };
+// @description     Guest Login (auto create if not exists)
+// @route           GET /api/user/guest
+// @access          Public
+const guestLogin = async (req, res) => {
+  try {
+    const guestEmail = "guest@prchat.com";
+
+    let user = await User.findOne({ email: guestEmail }).exec();
+
+    if (!user) {
+      user = await User.create({
+        name: "Guest User",
+        email: guestEmail,
+        password: await generateHashedPassword("guest123"),
+        pic: "https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      pic: user.pic,
+      token: generateToken(user._id, user.email),
+      message: "Guest login successful",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to login as guest",
+    });
+  }
+};
+
+module.exports = { registerUser, authUser, allUsers, guestLogin };
