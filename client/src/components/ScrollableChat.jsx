@@ -1,13 +1,12 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+// client/src/components/ScrollableChat.jsx
 import { useEffect, useRef } from "react";
+import { Tooltip, Avatar, Text } from "@chakra-ui/react";
 import Lottie from "lottie-react";
 
 import "../App.css";
 import {
   isLastMessage,
   isSameSender,
-  isSameSenderMargin,
-  isSameUser,
 } from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
@@ -28,7 +27,8 @@ const ScrollableChat = ({
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
-  console.log("Messages:", messages);
+  // helpful debug (remove after QA)
+  // console.log("Messages:", messages);
 
   return (
     <>
@@ -45,7 +45,7 @@ const ScrollableChat = ({
               style={{
                 display: "flex",
                 justifyContent:
-                  message.sender._id === user._id ? "flex-end" : "flex-start", // ✅ Align right for my messages
+                  message.sender._id === user._id ? "flex-end" : "flex-start", // Align right for my messages
                 padding: "5px",
               }}
             >
@@ -95,34 +95,29 @@ const ScrollableChat = ({
                   {/* Main message bubble */}
                   <span
                     style={{
-                    backgroundColor: `${
+                      backgroundColor: `${
                         message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                   }`,
-                  borderRadius: "20px",
-                  padding: "5px 15px",
-                  display: "inline-block",
+                      }`,
+                      borderRadius: "20px",
+                      padding: "5px 15px",
+                      display: "inline-block",
                     }}
                     id={message._id}
                     onClick={() => {
                       if (message.replyTo) {
-                        const el = document.getElementById(
-                          message.replyTo._id
-                        );
+                        const el = document.getElementById(message.replyTo._id);
                         if (el) {
                           el.scrollIntoView({
                             behavior: "smooth",
                             block: "center",
                           });
                           el.style.backgroundColor = "#ffeaa7"; // temporary highlight
-                          setTimeout(
-                            () => (el.style.backgroundColor = ""),
-                            1500
-                          );
+                          setTimeout(() => (el.style.backgroundColor = ""), 1500);
                         }
                       }
                     }}
                   >
-                    {/* ✅ Show quoted message if this is a reply */}
+                    {/* Show quoted message if this is a reply */}
                     {message.replyTo && (
                       <div
                         style={{
@@ -156,13 +151,39 @@ const ScrollableChat = ({
                     )}
 
                     {/* Actual message content */}
-                    {message.content}
+                    <div>{message.content}</div>
+
+                    {/* Timestamp + read status (single conditional block) */}
+                    {message.createdAt && (
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "center",
+                          marginTop: "6px",
+                        }}
+                      >
+                        <Text fontSize="xs" color="gray.500" ml="2">
+                          {new Date(message.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Text>
+                        </div>
+                    )}
+{message.sender._id === user._id && (
+                        <Text as="span" fontSize="xs" color="gray.500" ml="2">
+                          {message.isRead ? "✓✓ Seen" : "✓ Sent"}
+                        </Text>
+          
+                    )}
                   </span>
                 </div>
               </div>
             </div>
           ))}
       </div>
+
       {isTyping ? (
         <div style={{ width: "70px", marginTop: "5px" }}>
           <Lottie animationData={typingAnimation} loop={true} />

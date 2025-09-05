@@ -54,6 +54,12 @@ const sendMessage = async (req, res) => {
 // @access          Protected
 const allMessages = async (req, res) => {
   try {
+    await Message.updateMany(
+      { chat: req.params.chatId, sender: { $ne: req.user._id } },
+      { $set: { isRead: true } }
+    );
+    // mark other users\047 messages in this chat as read
+    await Message.updateMany({ chat: req.params.chatId, sender: { $ne: req.user._id } }, { $set: { isRead: true } });
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
       .populate("chat")
@@ -225,5 +231,44 @@ const searchMessages = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages,forwardMessage,pinMessage, unpinMessage, deleteMessage, searchMessages,};
+// mark messages in a chat as read by the current user
+const markMessagesRead = async (req, res) => {
+  try {
+    const chatId = req.params.chatId;
+    if (!chatId) {
+      return res.status(400).json({ success: false, message: "chatId required" });
+    }
+
+    // mark all messages in this chat that were NOT sent by current user and are unread
+    const result = await Message.updateMany(
+      { chat: chatId, sender: { $ne: req.user._id }, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    // find the updated message ids to broadcast
+    const updatedMessages = await Message.find({ chat: chatId, sender: { $ne: req.user._id }, isRead: true }).select("_id");
+
+    // broadcast via socket.io to the chat room so sender clients can update in realtime
+    const io = req.app.get("io");
+    if (io) {
+      // emit event to room named by chatId
+      io.to(chatId.toString()).emit("message read", {
+        chatId,
+        messageIds: updatedMessages.map((m) => m._id.toString()),
+        reader: req.user._id.toString(),
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      updatedCount: result.modifiedCount || result.nModified || 0,
+      messageIds: updatedMessages.map((m) => m._id.toString()),
+    });
+  } catch (error) {
+    console.error("markMessagesRead error:", error);
+    return res.status(500).json({ success: false, message: "Failed to mark messages read" });
+  }
+};
+
+module.exports = { sendMessage, allMessages,forwardMessage,pinMessage, unpinMessage, deleteMessage, searchMessages, markMessagesRead,};
 

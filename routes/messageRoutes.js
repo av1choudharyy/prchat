@@ -6,7 +6,8 @@ const {
   pinMessage,
   unpinMessage,
   deleteMessage,
-  searchMessages
+  searchMessages,
+  markMessagesRead
 } = require("../controllers/messageControllers");
 
 const { protect } = require("../middleware");
@@ -19,5 +20,6 @@ router.route("/:messageId/pin").put(protect, pinMessage);
 router.route("/:messageId/unpin").put(protect, unpinMessage);
 router.route("/:messageId").delete(protect, deleteMessage);
 router.route("/search/:chatId").get(protect, searchMessages);
+router.route("/read/:chatId").put(protect, markMessagesRead);
 
 module.exports = router;
