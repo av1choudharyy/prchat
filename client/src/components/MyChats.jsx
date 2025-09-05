@@ -4,10 +4,15 @@ import {
   Button,
   Stack,
   Text,
+<<<<<<< HEAD
   VStack,
   HStack,
   useToast,
   useDisclosure,
+=======
+  useDisclosure,
+  useToast,
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 
@@ -18,6 +23,10 @@ import GroupChatModal from "./miscellaneous/GroupChatModal";
 
 const MyChats = ({ fetchAgain }) => {
   const [loggedUser, setLoggedUser] = useState();
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
   const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
   const toast = useToast();
   const { onClose } = useDisclosure();
@@ -26,6 +35,7 @@ const MyChats = ({ fetchAgain }) => {
     try {
       const response = await fetch(`/api/chat`, {
         method: "GET",
+<<<<<<< HEAD
         headers: { Authorization: `Bearer ${user.token}` },
       });
       const data = await response.json();
@@ -35,10 +45,28 @@ const MyChats = ({ fetchAgain }) => {
       toast({
         title: "Error Occurred!",
         description: "Failed to load chats",
+=======
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      });
+      const data = await response.json();
+
+      setChats(data);
+      onClose(); // Close the side drawer
+    } catch (error) {
+      return toast({
+        title: "Error Occured!",
+        description: "Failed to Load the Search Results",
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
         status: "error",
         duration: 5000,
         isClosable: true,
         position: "bottom-left",
+<<<<<<< HEAD
+=======
+        variant: "solid",
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
       });
     }
   };
@@ -60,7 +88,10 @@ const MyChats = ({ fetchAgain }) => {
       borderRadius="lg"
       borderWidth="1px"
     >
+<<<<<<< HEAD
       {/* Header */}
+=======
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
       <Box
         pb={3}
         px={3}
@@ -83,7 +114,10 @@ const MyChats = ({ fetchAgain }) => {
         </GroupChatModal>
       </Box>
 
+<<<<<<< HEAD
       {/* Chat List */}
+=======
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
       <Box
         display="flex"
         flexDir="column"
@@ -92,6 +126,7 @@ const MyChats = ({ fetchAgain }) => {
         w="100%"
         h="100%"
         borderRadius="lg"
+<<<<<<< HEAD
         overflowY="auto"
       >
         {chats ? (
@@ -145,6 +180,30 @@ const MyChats = ({ fetchAgain }) => {
                 </Box>
               );
             })}
+=======
+        overflowY="hidden"
+      >
+        {chats ? (
+          <Stack overflowY="scroll">
+            {chats.map((chat) => (
+              <Box
+                onClick={() => setSelectedChat(chat)}
+                cursor="pointer"
+                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
+                color={selectedChat === chat ? "white" : "black"}
+                px={3}
+                py={2}
+                borderRadius="lg"
+                key={chat._id}
+              >
+                <Text>
+                  {!chat.isGroupChat
+                    ? getSender(loggedUser, chat.users)
+                    : chat.chatName}
+                </Text>
+              </Box>
+            ))}
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
           </Stack>
         ) : (
           <ChatLoading />

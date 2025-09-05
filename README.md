@@ -61,10 +61,16 @@ npm run client
 ## Test Users
 
 Pre-configured test accounts:
+<<<<<<< HEAD
 - test1@example.com / password123
 - test2@example.com / password123
 - test3@example.com / password123
 - guest@example.com / 123456
+=======
+- Shree@gmail.com / Shree
+- a@gmail.com / a
+
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
 
 ## Project Structure
 
@@ -81,4 +87,8 @@ prchat/
 
 ## License
 
+<<<<<<< HEAD
 MIT
+=======
+MIT
+>>>>>>> 2818aa101d1ec36cc2a78b16e93fce92f1488420
