@@ -152,7 +152,7 @@ const SideDrawer = () => {
         </Tooltip>
 
         {/* App Name Section */}
-        <Text fontSize="2xl" fontFamily="Work sans">
+        <Text fontSize="2xl" fontFamily="Work sans" fontWeight="800">
           PRChat
         </Text>
 
@@ -182,9 +182,9 @@ const SideDrawer = () => {
                   {notif.chat.isGroupChat
                     ? `New Message in ${notif.chat[0].chatName}`
                     : `New Message from ${getSender(
-                        user,
-                        notif.chat[0].users
-                      )}`}
+                      user,
+                      notif.chat[0].users
+                    )}`}
                   {/* Change chat[0] to chat from server side */}
                 </MenuItem>
               ))}

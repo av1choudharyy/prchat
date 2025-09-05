@@ -14,6 +14,7 @@ const Chat = () => {
       <Box
         display="flex"
         justifyContent="space-between"
+        gap="8px"
         w="100%"
         h="91.5vh"
         p="10px"
@@ -21,7 +22,7 @@ const Chat = () => {
         {user && <MyChats fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />}
         {user && <ChatBox fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />}
       </Box>
-    </div>
+    </div >
   );
 };
 
