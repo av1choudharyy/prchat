@@ -28,7 +28,7 @@ services:
       - "5000:5000"
     environment:
       PORT: 5000
-      MONGO_URI: mongodb://prchat_user:prchat_pass@mongodb:27017/prchat?authSource=prchat
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/prchat?authSource=admin
       JWT_SECRET: development-secret-key
       JWT_EXPIRE: 2d
       NODE_ENV: development

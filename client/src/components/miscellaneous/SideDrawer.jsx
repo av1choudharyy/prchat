@@ -171,21 +171,29 @@ const SideDrawer = () => {
 
             <MenuList>
               {!notification.length && <Text pl="2">No New Messages</Text>}
+              {notification.length > 0 && (
+                <MenuItem
+                  onClick={() => setNotification([])}
+                  color="red.500"
+                  fontWeight="bold"
+                >
+                  Clear All Notifications
+                </MenuItem>
+              )}
               {notification.map((notif) => (
                 <MenuItem
                   key={notif._id}
                   onClick={() => {
-                    setSelectedChat(notif.chat[0]);
-                    setNotification(notification.filter((n) => n !== notif));
+                    setSelectedChat(notif.chat);
+                    setNotification(notification.filter((n) => n._id !== notif._id));
                   }}
                 >
                   {notif.chat.isGroupChat
-                    ? `New Message in ${notif.chat[0].chatName}`
+                    ? `New Message in ${notif.chat.chatName}`
                     : `New Message from ${getSender(
                         user,
-                        notif.chat[0].users
+                        notif.chat.users
                       )}`}
-                  {/* Change chat[0] to chat from server side */}
                 </MenuItem>
               ))}
             </MenuList>
@@ -254,3 +262,4 @@ const SideDrawer = () => {
 };
 
 export default SideDrawer;
+

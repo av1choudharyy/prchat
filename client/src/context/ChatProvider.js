@@ -18,6 +18,11 @@ const ChatProvider = ({ children }) => {
 
     if (!userInfo) {
       navigate("/");
+    } else {
+      // Request notification permission when user is logged in
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
     }
     // eslint-disable-next-line
   }, [navigate]);
