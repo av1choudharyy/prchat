@@ -8,6 +8,8 @@ import {
   Spinner,
   Text,
   useToast,
+  HStack,
+  Button,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -27,6 +29,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
+  const suggestions = ["Okay", "Thanks!", "On it"]; // quick replies
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -87,7 +91,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
         !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat[0]._id
+        selectedChatCompare._id !== newMessageRecieved.chat._id
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
@@ -117,6 +121,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: newMessage,
             chatId: selectedChat._id,
+            replyTo: replyTo && replyTo._id ? replyTo._id : null,
           }),
         });
         const data = await response.json();
@@ -124,6 +129,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         socket.emit("new message", data);
         setNewMessage("");
         setMessages([...messages, data]); // Add new message with existing messages
+        setReplyTo(null);
       } catch (error) {
         return toast({
           title: "Error Occured!",
@@ -204,7 +210,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg="#E5DDD5"
             w="100%"
             h="100%"
             borderRadius="lg"
@@ -227,17 +233,72 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  onReply={(msg) => setReplyTo(msg)}
+                />
               </div>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
+            {replyTo ? (
+              <Box
+                bg="gray.100"
+                p="3"
+                borderRadius="md"
+                mb="2"
+                borderLeft="4px solid"
+                borderLeftColor="blue.500"
+                position="relative"
+              >
+                <HStack justify="space-between" align="flex-start">
+                  <Box flex="1">
+                    <Text fontSize="xs" color="gray.600" fontWeight="bold">
+                      Replying to {replyTo.sender?.name || ""}
+                    </Text>
+                    <Text fontSize="sm" color="gray.700" noOfLines={2}>
+                      {replyTo.content}
+                    </Text>
+                  </Box>
+                  <IconButton
+                    size="xs"
+                    variant="ghost"
+                    icon={<ArrowBackIcon />}
+                    onClick={() => setReplyTo(null)}
+                    aria-label="Cancel reply"
+                  />
+                </HStack>
+              </Box>
+            ) : null}
+
+            <HStack spacing={2} mb="2">
+              {suggestions.map((text) => (
+                <Button
+                  key={text}
+                  size="xs"
+                  variant="outline"
+                  onClick={() =>
+                    setNewMessage((prev) => (prev ? `${prev} ${text}` : text))
+                  }
+                >
+                  {text}
+                </Button>
+              ))}
+            </HStack>
+
+            <FormControl mt="1" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
+                bg="#FFFFFF"
+                placeholder="Type a message..."
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
+                borderRadius="20px"
+                border="1px solid #E5E5EA"
+                _focus={{
+                  borderColor: "#007bff",
+                  boxShadow: "0 0 0 1px #007bff"
+                }}
               />
             </FormControl>
           </Box>
