@@ -19,6 +19,8 @@ import {
   Tooltip,
   useDisclosure,
   useToast,
+  IconButton,
+  useColorMode,
 } from "@chakra-ui/react";
 import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useState } from "react";
@@ -48,6 +50,7 @@ const SideDrawer = () => {
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+  const { colorMode, toggleColorMode } = useColorMode();
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
@@ -136,7 +139,7 @@ const SideDrawer = () => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={{ base: "white", _dark: "gray.800" }}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
@@ -157,7 +160,16 @@ const SideDrawer = () => {
         </Text>
 
         {/* User Profile and Bell Icon Section */}
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Tooltip label={colorMode === 'light' ? 'Enable dark mode' : 'Disable dark mode'} hasArrow>
+            <IconButton
+              size="sm"
+              aria-label="Toggle color mode"
+              onClick={toggleColorMode}
+              icon={<span>{colorMode === 'light' ? '🌙' : '☀️'}</span>}
+              variant="ghost"
+            />
+          </Tooltip>
           <Menu>
             <MenuButton p="1" className="notification-badge-container">
               <BellIcon fontSize="2xl" m="1" />
@@ -215,7 +227,7 @@ const SideDrawer = () => {
 
       <Drawer placement="left" isOpen={isOpen} onClose={onClose}>
         <DrawerOverlay />
-        <DrawerContent>
+        <DrawerContent bg={{ base: 'white', _dark: 'gray.800' }}>
           <DrawerCloseButton />
           <DrawerHeader>Search Users</DrawerHeader>
 

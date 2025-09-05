@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const { connectToMongoDB } = require("./config");
-const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
+const { userRoutes, chatRoutes, messageRoutes, uploadRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
 
 const app = express(); // Use express js in our app
@@ -11,9 +11,13 @@ app.use(express.json()); // Accept JSON data
 dotenv.config({ path: path.join(__dirname, "./.env") }); // Specify a custom path if your file containing environment variables is located elsewhere
 connectToMongoDB(); // Connect to Database
 
+// Serve static uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // --------------------------DEPLOYMENT------------------------------
 
@@ -65,9 +69,11 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+    const chat = Array.isArray(newMessageRecieved?.chat)
+      ? newMessageRecieved.chat[0]
+      : newMessageRecieved?.chat;
 
-    if (!chat.users) return console.log("chat.users not defined");
+    if (!chat || !chat.users) return console.log("chat.users not defined");
 
     chat.users.forEach((user) => {
       if (user._id === newMessageRecieved.sender._id) return;

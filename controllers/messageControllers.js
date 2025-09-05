@@ -1,12 +1,12 @@
 const { Message, Chat } = require("../models");
 
-// @description     Create New Message
+// @description     Create New Message (text or attachment)
 // @route           POST /api/Message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, attachment } = req.body;
 
-  if (!content || !chatId) {
+  if ((!content && !attachment) || !chatId) {
     return res.status(400).json({
       success: false,
       statusCode: 400,
@@ -18,8 +18,9 @@ const sendMessage = async (req, res) => {
     // Create a new message
     let message = await Message.create({
       sender: req.user._id, // Logged in user id,
-      content,
+      content: content || "",
       chat: chatId,
+      attachment: attachment || undefined,
     });
 
     message = await (

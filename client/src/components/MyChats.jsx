@@ -31,7 +31,14 @@ const MyChats = ({ fetchAgain }) => {
       });
       const data = await response.json();
 
-      setChats(data);
+      // Ensure chats is always an array
+      const nextChats = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
+
+      setChats(nextChats);
       onClose(); // Close the side drawer
     } catch (error) {
       return toast({
@@ -58,7 +65,7 @@ const MyChats = ({ fetchAgain }) => {
       flexDir="column"
       alignItems="center"
       p={3}
-      bg="white"
+      bg={{ base: "white", _dark: "gray.800" }}
       w={{ base: "100%", md: "31%" }}
       borderRadius="lg"
       borderWidth="1px"
@@ -89,13 +96,13 @@ const MyChats = ({ fetchAgain }) => {
         display="flex"
         flexDir="column"
         p={3}
-        bg="#F8F8F8"
+        bg={{ base: "#F8F8F8", _dark: "gray.700" }}
         w="100%"
         h="100%"
         borderRadius="lg"
         overflowY="hidden"
       >
-        {chats ? (
+        {Array.isArray(chats) ? (
           <Stack overflowY="scroll">
             {chats.map((chat) => (
               <Box
