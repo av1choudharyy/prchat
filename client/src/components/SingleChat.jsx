@@ -36,6 +36,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [fontStyle, setFontStyle] = useState("normal"); // "bold", "italic", "underline"
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -254,6 +255,35 @@ const onReact = async (messageId, emoji) => {
                 </>
               )}
             </Box>
+            <Box display="flex" justifyContent="flex-end" mb={2}>
+  <select
+    value={fontStyle}
+    onChange={(e) => setFontStyle(e.target.value)}
+    style={{
+      padding: "6px",
+      borderRadius: "6px",
+      fontFamily:
+        fontStyle === "monospace"
+          ? "monospace"
+          : fontStyle === "small-caps"
+          ? "inherit"
+          : "inherit",
+      fontStyle: fontStyle === "italic" || fontStyle === "oblique" ? fontStyle : "normal",
+      fontWeight: fontStyle === "bold" ? "bold" : "normal",
+      textDecoration: fontStyle === "underline" ? "underline" : "none",
+      fontVariant: fontStyle === "small-caps" ? "small-caps" : "normal",
+    }}
+  >
+    <option value="normal">Normal</option>
+    <option value="bold">Bold</option>
+    <option value="italic">Italic</option>
+    <option value="underline">Underline</option>
+    <option value="oblique">Oblique</option>
+    <option value="monospace">Monospace</option>
+    <option value="small-caps">Small Caps</option>
+  </select>
+</Box>
+
 <FormControl maxW="300px" display="flex" gap="6px">
   <Input
     placeholder="Search message..."
@@ -310,6 +340,7 @@ const onReact = async (messageId, emoji) => {
                   isTyping={isTyping}
                   highlightedMessageId={highlightedMessageId}
                   onReact={onReact}
+                  fontStyle={fontStyle}
 
                 />
               </div>

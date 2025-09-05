@@ -13,8 +13,20 @@ import {
 } from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
+const getFontStyle = (style) => {
+  switch (style) {
+    case "bold":
+      return { fontWeight: "bold" };
+    case "italic":
+      return { fontStyle: "italic" };
+    case "underline":
+      return { textDecoration: "underline" };
+    default:
+      return {};
+  }
+};
 
-const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact, }) => {
+const ScrollableChat = ({ messages, isTyping, highlightedMessageId, onReact,fontStyle, }) => {
   const { user } = ChatState();
   const highlightRef = useRef();
   const emojiOptions = ["❤️", "😂", "👍", "🔥", "😢"];
@@ -90,7 +102,7 @@ const isOwnMessage = senderId === user._id;
                   transition="background-color 0.3s ease"
                   position="relative"
                 >
-                  <Text>{message.content}</Text>
+                  <Text style={getFontStyle(fontStyle)}>{message.content}</Text>
 
                   {/* Emoji hover bar */}
                   {hoveredMessageId === message._id && (
