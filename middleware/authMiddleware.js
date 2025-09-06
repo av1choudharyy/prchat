@@ -17,6 +17,10 @@ const protect = async (req, res, next) => {
   
         // Find user with the id and return it without the password
         req.user = await User.findById(decoded.id).select("-password");
+        if (req.user) {
+          req.user.lastSeen = new Date();
+          await req.user.save();
+        }
   
         next(); // Move on to next operation
       } catch (error) {

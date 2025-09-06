@@ -19,6 +19,8 @@ import {
   Tooltip,
   useDisclosure,
   useToast,
+  IconButton,
+  useColorMode,
 } from "@chakra-ui/react";
 import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useState } from "react";
@@ -48,6 +50,7 @@ const SideDrawer = () => {
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+  const { colorMode, toggleColorMode } = useColorMode();
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
@@ -136,7 +139,7 @@ const SideDrawer = () => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={{ base: "white", _dark: "gray.800" }}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
@@ -156,8 +159,19 @@ const SideDrawer = () => {
           PRChat
         </Text>
 
-        {/* User Profile and Bell Icon Section */}
-        <div>
+        {/* User Profile, Dark Mode Toggle and Bell Icon Section */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <IconButton
+            aria-label="Toggle dark mode"
+            size="sm"
+            onClick={toggleColorMode}
+          >
+            {colorMode === "light" ? (
+              <i className="fas fa-moon" />
+            ) : (
+              <i className="fas fa-sun" />
+            )}
+          </IconButton>
           <Menu>
             <MenuButton p="1" className="notification-badge-container">
               <BellIcon fontSize="2xl" m="1" />
@@ -179,11 +193,11 @@ const SideDrawer = () => {
                     setNotification(notification.filter((n) => n !== notif));
                   }}
                 >
-                  {notif.chat.isGroupChat
-                    ? `New Message in ${notif.chat[0].chatName}`
+                  {notif.chat?.[0]?.isGroupChat
+                    ? `New Message in ${notif.chat?.[0]?.chatName}`
                     : `New Message from ${getSender(
                         user,
-                        notif.chat[0].users
+                        notif.chat?.[0]?.users || []
                       )}`}
                   {/* Change chat[0] to chat from server side */}
                 </MenuItem>

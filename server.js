@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const { connectToMongoDB } = require("./config");
-const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
+const { userRoutes, chatRoutes, messageRoutes, geminiRoutes } = require("./routes");
 const { notFound, errorHandler } = require("./middleware");
 
 const app = express(); // Use express js in our app
@@ -14,6 +14,7 @@ connectToMongoDB(); // Connect to Database
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/gemini", geminiRoutes);
 
 // --------------------------DEPLOYMENT------------------------------
 
@@ -42,7 +43,7 @@ const server = app.listen(process.env.PORT, () =>
 
 const io = require("socket.io")(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
   },
   pingTimeout: 60 * 1000,
 });
@@ -65,7 +66,7 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+    let chat = newMessageRecieved.chat[0];
 
     if (!chat.users) return console.log("chat.users not defined");
 
@@ -73,6 +74,35 @@ io.on("connection", (socket) => {
       if (user._id === newMessageRecieved.sender._id) return;
 
       socket.in(user._id).emit("message recieved", newMessageRecieved);
+    });
+  });
+
+  socket.on("poll voted", (updatedMessage) => {
+    const chat = updatedMessage.chat[0];
+    if (!chat?.users) return;
+    chat.users.forEach((user) => {
+      socket.in(user._id).emit("poll updated", updatedMessage);
+    });
+  });
+
+  socket.on("messages read", ({ chatId, readerId }) => {
+    if (!chatId) return;
+    socket.in(chatId).emit("messages read", { chatId, readerId });
+  });
+
+  socket.on("message edited", (updatedMessage) => {
+    const chat = updatedMessage.chat[0];
+    if (!chat?.users) return;
+    chat.users.forEach((user) => {
+      socket.in(user._id).emit("message updated", updatedMessage);
+    });
+  });
+
+  socket.on("message deleted", ({ chat, messageId }) => {
+    const c = chat?.[0] || chat;
+    if (!c?.users) return;
+    c.users.forEach((user) => {
+      socket.in(user._id).emit("message removed", { messageId, chat: c });
     });
   });
 
