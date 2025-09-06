@@ -29,6 +29,13 @@
   background: #555;
 }
 
+.message-container .message-actions{
+  display: none ;
+}
+.message-container:hover .message-actions{
+  display: flex;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
@@ -56,4 +63,14 @@
   position: absolute;
   top: 0px;
   left: 18px;
+}
+
+/* Only add styles for reply block - don't touch message actions */
+.reply-block {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.reply-block:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
 }
