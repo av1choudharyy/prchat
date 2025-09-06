@@ -26,17 +26,17 @@ const MyChats = ({ fetchAgain }) => {
       const response = await fetch(`/api/chat`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${user.token}`,
+          Authorization: `Bearer ${user?.token}`, // added ? for safety
         },
       });
       const data = await response.json();
 
-      setChats(data);
+      setChats(data || []); // fallback to empty array
       onClose(); // Close the side drawer
     } catch (error) {
       return toast({
         title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+        description: "Failed to Load the Chats",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -47,7 +47,10 @@ const MyChats = ({ fetchAgain }) => {
   };
 
   useEffect(() => {
-    setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
+    const storedUser = localStorage.getItem("userInfo");
+    if (storedUser) {
+      setLoggedUser(JSON.parse(storedUser));
+    }
     fetchChats();
     // eslint-disable-next-line
   }, [fetchAgain]);
@@ -95,7 +98,7 @@ const MyChats = ({ fetchAgain }) => {
         borderRadius="lg"
         overflowY="hidden"
       >
-        {chats ? (
+        {chats && chats.length > 0 ? (
           <Stack overflowY="scroll">
             {chats.map((chat) => (
               <Box
@@ -110,8 +113,8 @@ const MyChats = ({ fetchAgain }) => {
               >
                 <Text>
                   {!chat.isGroupChat
-                    ? getSender(loggedUser, chat.users)
-                    : chat.chatName}
+                    ? getSender(loggedUser, chat.users) || "Unknown User"
+                    : chat.chatName || "Unnamed Group"}
                 </Text>
               </Box>
             ))}
