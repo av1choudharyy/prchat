@@ -1,10 +1,11 @@
 const { Message, Chat } = require("../models");
 
+
 // @description     Create New Message
 // @route           POST /api/Message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, repliedToMessageId } = req.body;
 
   if (!content || !chatId) {
     return res.status(400).json({
@@ -14,22 +15,34 @@ const sendMessage = async (req, res) => {
     });
   }
 
-  try {
-    // Create a new message
-    let message = await Message.create({
-      sender: req.user._id, // Logged in user id,
-      content,
-      chat: chatId,
-    });
+   const newMessage = {
+    sender: req.user._id,
+    content: content,
+    chat: chatId,
+    repliedToMessage: repliedToMessageId || null, // Add the repliedToMessageId
+  };
 
-    message = await (
-      await message.populate("sender", "name pic")
-    ).populate({
-      path: "chat",
-      select: "chatName isGroupChat users",
-      model: "Chat",
-      populate: { path: "users", select: "name email pic", model: "User" },
-    });
+  
+     try {
+    let message = await Message.create(newMessage);
+
+      message = await Message.findById(message._id)
+      .populate("sender", "name pic email")
+      .populate({
+        path: "chat",
+        populate: {
+          path: "users",
+          select: "name pic email",
+        },
+      })
+       .populate({
+        path: "repliedToMessage",
+        populate: {
+          path: "sender",
+          select: "name",
+        },
+      });
+//    
 
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
@@ -51,8 +64,18 @@ const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
-      .populate("chat");
-
+      .populate("chat")
+      .populate({
+        
+        path: 'repliedToMessage',
+        model: 'Message', 
+        select: 'content sender', 
+        populate: {
+          path: 'sender',
+          model: 'User',
+          select: 'name',
+        }
+      });
     res.status(200).json(messages);
   } catch (error) {
     return res.status(400).json({
@@ -63,4 +86,27 @@ const allMessages = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, allMessages };
+let messages = [];
+
+const messageController = (io, socket) => {
+  // Text message
+  socket.on("sendMessage", ({ id, text, replyTo }) => {
+    const msg = { id, text, replyTo: replyTo || null };
+    messages.push(msg);
+    io.emit("message", msg);
+  });
+
+  // File message
+  socket.on("sendFile", (file) => {
+    const fileMsg = {
+      id: file.id,
+      name: file.name,
+      data: file.data,
+    };
+    messages.push(fileMsg);
+    io.emit("fileMessage", fileMsg);
+  });
+};
+
+
+module.exports = { sendMessage, allMessages, messageController };

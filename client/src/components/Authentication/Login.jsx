@@ -30,7 +30,6 @@ const Login = () => {
   const submitHandler = async () => {
     setLoading(true);
 
-    // If email or password is missing
     if (!credentials.email || !credentials.password) {
       toast({
         title: "Please Fill all the Feilds",
@@ -45,7 +44,7 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch("/api/user/login", {
+      const response = await fetch("http://localhost:5000/api/user/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,6 +55,7 @@ const Login = () => {
         }),
       });
       const data = await response.json();
+      console.log(data);
 
       toast({
         title: data.message,
