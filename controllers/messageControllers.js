@@ -62,5 +62,51 @@ const allMessages = async (req, res) => {
     });
   }
 };
+// @description     Add emoji reaction to a message
+// @route           PUT /api/message/:messageId/react
+// @access          Protected
+const reactToMessage = async (req, res) => {
+  const { emoji } = req.body;
+  const { messageId } = req.params;
 
-module.exports = { sendMessage, allMessages };
+  if (!emoji) {
+    return res.status(400).json({ message: "Emoji is required" });
+  }
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Check if user already reacted
+    const existingIndex = message.reactions.findIndex(
+      (r) => r.reactedBy.toString() === req.user._id.toString()
+    );
+
+    if (existingIndex !== -1) {
+      // Update existing reaction
+      message.reactions[existingIndex].emoji = emoji;
+      message.reactions[existingIndex].reactedAt = Date.now();
+    } else {
+      // Add new reaction
+      message.reactions.push({
+        emoji,
+        reactedBy: req.user._id,
+      });
+    }
+
+    await message.save();
+
+    const updatedMessage = await Message.findById(message._id)
+      .populate("sender", "name pic")
+      .populate("reactions.reactedBy", "name pic");
+
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Reaction error:", error);
+    res.status(400).json({ message: "Failed to react to message" });
+  }
+};
+module.exports = { sendMessage, allMessages,reactToMessage };

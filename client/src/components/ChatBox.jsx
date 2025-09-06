@@ -1,21 +1,26 @@
-import { Box } from "@chakra-ui/react";
+import { Box, useColorModeValue } from "@chakra-ui/react";
 
 import { ChatState } from "../context/ChatProvider";
 import SingleChat from "./SingleChat";
 
 const ChatBox = ({ fetchAgain, setFetchAgain }) => {
   const { selectedChat } = ChatState();
+
+  const bgColor = useColorModeValue("white", "#2D3748"); // light vs dark background
+  const borderColor = useColorModeValue("gray.200", "gray.600"); // subtle border contrast
+
   return (
     <Box
       display={{ base: selectedChat ? "flex" : "none", md: "flex" }}
       alignItems="center"
       flexDir="column"
       p={3}
-      bg="white"
+      bg={bgColor}
       w={{ base: "100%", md: "68%" }}
       borderRadius="lg"
       borderWidth="1px"
-    >
+      borderColor={borderColor}
+    > 
       <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
     </Box>
   );

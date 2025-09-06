@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { useEffect, useState, useCallback } from "react";
+import { ArrowBackIcon, ArrowForwardIcon } from "@chakra-ui/icons";
+
+import { BsEmojiSmile } from "react-icons/bs"; // Emoji icon
+
+
+import axios from "axios";
 import {
   Box,
   FormControl,
@@ -8,6 +13,12 @@ import {
   Spinner,
   Text,
   useToast,
+  Button,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  SimpleGrid
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -17,30 +28,55 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5000";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
+  const quickReplies = [
+  { label: "Hi 👋", value: "Hi 👋" },
+  { label: "Gm ☀️", value: "Gm ☀️" },
+  { label: "Gn 🌙", value: "Gn 🌙" },
+  { label: "Okay 👍", value: "Okay 👍" },
+  { label: "Thank you 🙏", value: "Thank you 🙏" },
+  { label: "Bye 👋", value: "Bye 👋" },
+  { label: "😂", value: "😂" },
+  { label: "❤️", value: "❤️" },
+  { label: "🔥", value: "🔥" },
+  { label: "😎", value: "😎" },
+  { label: "🤔", value: "🤔" },
+];
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [fontStyle, setFontStyle] = useState("normal"); // "bold", "italic", "underline"
+  const emojiOptions = [
+  "😀", "😂", "😍", "👍", "🔥",
+  "😢", "🎉", "🤔", "🙌", "😎",
+  "🥳", "😇", "😡", "😭", "👏",
+  "😅", "😴", "😬", "😜", "🤯",
+  "🤗", "😱", "😈", "👀", "💯",
+  "💔", "❤️", "😋", "😷", "🤒",
+  "🤓", "🧐", "😶", "😪", "😤",
+  "🤤", "🤝", "🙏", "👋", "🫶",
+  "🌟", "🌈", "☀️", "🌙", "⚡",
+  "🎶", "🎂", "🎁", "📣", "🧠"
+];
+
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
 
-  const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
-    if (!selectedChat) {
-      return;
-    }
+  const fetchMessages = useCallback(async () => {
+    if (!selectedChat) return;
 
     try {
       setLoading(true);
-
       const response = await fetch(`/api/message/${selectedChat._id}`, {
         method: "GET",
         headers: {
@@ -48,14 +84,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         },
       });
       const data = await response.json();
-
       setMessages(data);
       setLoading(false);
-
       socket.emit("join chat", selectedChat._id);
     } catch (error) {
       setLoading(false);
-      return toast({
+      toast({
         title: "Error Occured!",
         description: "Failed to Load the Messages",
         status: "error",
@@ -65,83 +99,102 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         variant: "solid",
       });
     }
-  };
+  }, [selectedChat, user.token, toast]);
 
   useEffect(() => {
     socket = io(ENDPOINT);
     socket.emit("setup", user);
     socket.on("connected", () => setSocketConnected(true));
-
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-    // eslint-disable-next-line
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
+    fetchMessages();
     selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
-  }, [selectedChat]);
+  }, [selectedChat, fetchMessages]);
 
   useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
+    const messageListener = (newMessageRecieved) => {
       if (
         !selectedChatCompare ||
         selectedChatCompare._id !== newMessageRecieved.chat[0]._id
       ) {
-        if (!notification.includes(newMessageRecieved)) {
-          setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+        if (!notification.some((n) => n._id === newMessageRecieved._id)) {
+          setNotification((prev) => [newMessageRecieved, ...prev]);
+          setFetchAgain((prev) => !prev);
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prev) => [...prev, newMessageRecieved]);
       }
-    });
+    };
 
-    // eslint-disable-next-line
-  });
+    socket.on("message recieved", messageListener);
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+    return () => {
+      socket.off("message recieved", messageListener);
+    };
+  }, [notification, fetchAgain, setNotification, setFetchAgain]);
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
-        });
-        const data = await response.json();
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
-      }
+    socket.emit("stop typing", selectedChat._id);
+    try {
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: newMessage,
+          chatId: selectedChat._id,
+        }),
+      });
+      const data = await response.json();
+      socket.emit("new message", data);
+      setMessages((prev) => [...prev, data]);
+      setNewMessage("");
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
     }
   };
 
+  const sendMessage = (e) => {
+    if (e.key === "Enter") {
+      handleSendMessage();
+    }
+  };
+const onReact = async (messageId, emoji) => {
+  try {
+    const { data: updatedMessage } = await axios.put(
+      `/api/message/${messageId}/react`,
+      { emoji },
+      { headers: { Authorization: `Bearer ${user.token}` } }
+    );
+
+    setMessages((prevMessages) =>
+      prevMessages.map((msg) =>
+        msg._id === updatedMessage._id ? updatedMessage : msg
+      )
+    );
+  } catch (err) {
+    console.error("Failed to react:", err);
+  }
+};
+
+
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
-
-    // Typing Indicator Logic
     if (!socketConnected) return;
 
     if (!typing) {
@@ -149,13 +202,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("typing", selectedChat._id);
     }
 
-    let lastTypingTime = new Date().getTime();
-    let timerLength = 3000;
+    const lastTypingTime = new Date().getTime();
+    const timerLength = 3000;
 
     setTimeout(() => {
-      let timeNow = new Date().getTime();
-      let timeDiff = timeNow - lastTypingTime;
-
+      const timeNow = new Date().getTime();
+      const timeDiff = timeNow - lastTypingTime;
       if (timeDiff >= timerLength && typing) {
         socket.emit("stop typing", selectedChat._id);
         setTyping(false);
@@ -163,41 +215,147 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  const handleSearch = () => {
+    if (!searchTerm.trim()) return;
+
+    const match = messages.find((msg) =>
+      msg.content.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (match) {
+      setHighlightedMessageId(match._id);
+      setTimeout(() => setHighlightedMessageId(null), 3000);
+    } else {
+      setHighlightedMessageId(null);
+    }
+    if (!match) {
+  toast({
+    title: "No match found",
+    status: "info",
+    duration: 3000,
+    isClosable: true,
+    position: "bottom-right",
+  });
+}
+
+  };
+
   return (
     <>
       {selectedChat ? (
         <>
-          <Text
-            fontSize={{ base: "28px", md: "30px" }}
-            pb="3"
-            px="2"
-            w="100%"
-            fontFamily="Work sans"
+          <Box
             display="flex"
-            justifyContent={{ base: "space-between" }}
             alignItems="center"
+            justifyContent="space-between"
+            px="2"
+            pb="3"
+            w="100%"
+            gap="12px"
           >
             <IconButton
               display={{ base: "flex", md: "none" }}
               icon={<ArrowBackIcon />}
               onClick={() => setSelectedChat("")}
             />
-            {!selectedChat.isGroupChat ? (
-              <>
-                {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
-              </>
-            ) : (
-              <>
-                {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
-              </>
-            )}
-          </Text>
+
+            <Box
+              display="flex"
+              alignItems="center"
+              gap="8px"
+              flex="1"
+              justifyContent="flex-start"
+            >
+              {!selectedChat.isGroupChat ? (
+                <>
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                  <Text fontSize={{ base: "20px", md: "24px" }} fontFamily="Work sans">
+                    {getSender(user, selectedChat.users)}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                  <Text fontSize={{ base: "20px", md: "24px" }} fontFamily="Work sans">
+                    {selectedChat.chatName.toUpperCase()}
+                  </Text>
+                </>
+              )}
+            </Box>
+<Box display="flex" alignItems="center" justifyContent="flex-end" mb={2} gap={2}>
+  <Text fontWeight="semibold">Font Style:</Text>
+  <select
+    value={fontStyle}
+    onChange={(e) => setFontStyle(e.target.value)}
+    style={{
+      padding: "6px",
+      borderRadius: "6px",
+      fontWeight: fontStyle === "bold" ? "bold" : "normal",
+      fontStyle: fontStyle === "italic" ? "italic" : "normal",
+      textDecoration: fontStyle === "underline" ? "underline" : "none",
+    }}
+  >
+    <option value="normal">Normal</option>
+    <option value="bold">Bold</option>
+    <option value="italic">Italic</option>
+    <option value="underline">Underline</option>
+  </select>
+</Box>
+<FormControl maxW="300px" display="flex" gap="6px">
+  {/* Emoji Picker */}
+                <Popover placement="top-start">
+                  <PopoverTrigger>
+                    <IconButton
+                      icon={<BsEmojiSmile />}
+                      variant="ghost"
+                      aria-label="Choose emoji"
+                      fontSize="xl"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent width="220px">
+                    <PopoverBody>
+                      <SimpleGrid columns={5} spacing={2}>
+                        {emojiOptions.map((emoji) => (
+                          <Text
+                            key={emoji}
+                            fontSize="xl"
+                            cursor="pointer"
+                            onClick={() => setSearchTerm((prev) => prev + emoji)}
+                            _hover={{ transform: "scale(1.2)" }}
+                            transition="transform 0.2s"
+                          >
+                            {emoji}
+                          </Text>
+                        ))}
+                      </SimpleGrid>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+  <Input
+    placeholder="Search message..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    onKeyDown={(e) => {
+      if (e.key === "Enter") handleSearch();
+    }}
+    bg="#E0E0E0"
+    variant="filled"
+    size="sm"
+  />
+  <IconButton
+    icon={<ArrowForwardIcon />}
+    colorScheme="teal"
+    size="sm"
+    onClick={handleSearch}
+    aria-label="Search message"
+  />
+</FormControl>
+
+          </Box>
 
           <Box
             display="flex"
@@ -227,18 +385,85 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  highlightedMessageId={highlightedMessageId}
+                  onReact={onReact}
+                  fontStyle={fontStyle}
+
+                />
               </div>
             )}
+            <Box display="flex" gap="8px" mb="2" flexWrap="wrap">
+  {quickReplies.map((reply) => (
+    <Button
+  key={reply.value}
+  size="sm"
+  colorScheme="blue"
+  variant="solid"
+  bg="blue.200"
+  color="black"
+  _hover={{ bg: "blue.300" }}
+  onClick={() =>
+    setNewMessage((prev) => prev + (prev ? " " : "") + reply.value)
+  }
+>
+  {reply.label}
+</Button>
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
+  ))}
+</Box>
+            <FormControl mt="3" isRequired>
+              <Box display="flex" gap="8px" alignItems="center">
+                
+                {/* Emoji Picker */}
+                <Popover placement="top-start">
+                  <PopoverTrigger>
+                    <IconButton
+                      icon={<BsEmojiSmile />}
+                      variant="ghost"
+                      aria-label="Choose emoji"
+                      fontSize="xl"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent width="220px">
+                    <PopoverBody>
+                      <SimpleGrid columns={5} spacing={2}>
+                        {emojiOptions.map((emoji) => (
+                          <Text
+                            key={emoji}
+                            fontSize="xl"
+                            cursor="pointer"
+                            onClick={() => setNewMessage((prev) => prev + emoji)}
+                            _hover={{ transform: "scale(1.2)" }}
+                            transition="transform 0.2s"
+                          >
+                            {emoji}
+                          </Text>
+                        ))}
+                      </SimpleGrid>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+            
+                {/* Message Input */}
+                <Input
+                  variant="filled"
+                  bg="#E0E0E0"
+                  placeholder="Enter a message..."
+                  value={newMessage}
+                  onChange={typingHandler}
+                  onKeyDown={sendMessage}
+                />
+            
+                {/* Send Button */}
+                <IconButton
+                  colorScheme="blue"
+                  icon={<ArrowForwardIcon />}
+                  onClick={handleSendMessage}
+                />
+              </Box>
             </FormControl>
           </Box>
         </>
