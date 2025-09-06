@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+} from "@chakra-ui/icons";
+
 import {
   Box,
-  FormControl,
   IconButton,
   Input,
   Spinner,
@@ -17,7 +20,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5000";  // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
@@ -27,16 +30,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const quickReplies = ["Okay", "Thank you", "Sounds good"];
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
 
+  const handleReply = (message) => setReplyingTo(message);
+  const cancelReply = () => setReplyingTo(null);
+
   const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
-    if (!selectedChat) {
-      return;
-    }
+    if (!selectedChat) return;
 
     try {
       setLoading(true);
@@ -55,7 +60,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("join chat", selectedChat._id);
     } catch (error) {
       setLoading(false);
-      return toast({
+      toast({
         title: "Error Occured!",
         description: "Failed to Load the Messages",
         status: "error",
@@ -74,13 +79,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-    // eslint-disable-next-line
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchMessages(); // Whenever users switches chat, call the function again
     selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
   }, [selectedChat]);
 
   useEffect(() => {
@@ -91,57 +94,72 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+          setFetchAgain(!fetchAgain);
         }
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setMessages((prev) => [...prev, newMessageRecieved]);
       }
     });
-
-    // eslint-disable-next-line
   });
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+  useEffect(() => {
+  if (!socket || !selectedChat) return;
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
-        });
-        const data = await response.json();
+  socket.on("reaction added", (updatedMessage) => {
+    setMessages((prev) =>
+      prev.map((msg) => (msg._id === updatedMessage._id ? updatedMessage : msg))
+    );
+  });
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
-      }
-    }
+  return () => {
+    socket.off("reaction added");
   };
+}, [selectedChat]);
+
+
+
+  const sendMessage = async () => {
+  if (!newMessage.trim()) return;
+
+  socket.emit("stop typing", selectedChat._id);
+
+  try {
+    const payload = {
+      content: newMessage,
+      chatId: selectedChat._id,
+    };
+    if (replyingTo) payload.replyTo = replyingTo._id;
+
+    const response = await fetch("/api/message", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    socket.emit("new message", data);
+    setMessages((prev) => [...prev, data]);
+    setNewMessage(""); 
+    setReplyingTo(null);
+  } catch (error) {
+    toast({
+      title: "Error Occurred!",
+      description: "Failed to send the message",
+      status: "error",
+      duration: 5000,
+      isClosable: true,
+      position: "bottom-right",
+      variant: "solid",
+    });
+  }
+};
 
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
 
-    // Typing Indicator Logic
     if (!socketConnected) return;
 
     if (!typing) {
@@ -211,13 +229,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             overflowY="hidden"
           >
             {loading ? (
-              <Spinner
-                size="xl"
-                w="20"
-                h="20"
-                alignSelf="center"
-                margin="auto"
-              />
+              <Spinner size="xl" w="20" h="20" alignSelf="center" margin="auto" />
             ) : (
               <div
                 style={{
@@ -227,19 +239,57 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  handleReply={handleReply}
+                />
               </div>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
+            <Box display="flex" gap={2} mb={2}>
+              {quickReplies.map((text, index) => (
+                <Box
+                  key={index}
+                  px={3}
+                  py={1}
+                  bg="#f0f0f0"
+                  borderRadius="md"
+                  cursor="pointer"
+                  _hover={{ bg: "#e2e2e2" }}
+                  onClick={() => setNewMessage(text)}
+                >
+                  {text}
+                </Box>
+              ))}
+            </Box>
+
+            
+            <Box display="flex" gap={2} mt={3}>
               <Input
                 variant="filled"
                 bg="#E0E0E0"
                 placeholder="Enter a message.."
                 value={newMessage}
-                onChange={(e) => typingHandler(e)}
+                onChange={typingHandler}
+                onKeyDown={(e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();   // stop reload
+        sendMessage();
+      }
+    }}
               />
-            </FormControl>
+              <IconButton
+                type="button"
+                icon={<ArrowForwardIcon />}
+                colorScheme="blue"
+                onClick={(e) => {
+                  e.preventDefault();
+                  sendMessage();
+                }}
+                aria-label="Send message"
+              />
+            </Box>
           </Box>
         </>
       ) : (

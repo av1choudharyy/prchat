@@ -47,6 +47,12 @@ const io = require("socket.io")(server, {
   pingTimeout: 60 * 1000,
 });
 
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+
 io.on("connection", (socket) => {
   console.log("Connected to socket.io");
 
@@ -64,16 +70,9 @@ io.on("connection", (socket) => {
 
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
-  socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
-
-    if (!chat.users) return console.log("chat.users not defined");
-
-    chat.users.forEach((user) => {
-      if (user._id === newMessageRecieved.sender._id) return;
-
-      socket.in(user._id).emit("message recieved", newMessageRecieved);
-    });
+   socket.on("new message", (newMessage) => {
+    if (!newMessage.chat) return;
+    socket.to(newMessage.chat._id).emit("message recieved", newMessage);
   });
 
   socket.off("setup", () => {

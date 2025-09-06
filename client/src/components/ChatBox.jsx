@@ -1,10 +1,14 @@
 import { Box } from "@chakra-ui/react";
+import { useState } from "react";
 
 import { ChatState } from "../context/ChatProvider";
 import SingleChat from "./SingleChat";
 
 const ChatBox = ({ fetchAgain, setFetchAgain }) => {
   const { selectedChat } = ChatState();
+  
+    // Reply state to track which message is being replied to
+  const [replyTo, setReplyTo] = useState(null);
   return (
     <Box
       display={{ base: selectedChat ? "flex" : "none", md: "flex" }}
@@ -16,7 +20,9 @@ const ChatBox = ({ fetchAgain, setFetchAgain }) => {
       borderRadius="lg"
       borderWidth="1px"
     >
-      <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+      <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain}
+        replyTo={replyTo}
+        setReplyTo={setReplyTo} />
     </Box>
   );
 };
