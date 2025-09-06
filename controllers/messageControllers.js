@@ -15,12 +15,12 @@ const sendMessage = async (req, res) => {
   }
 
   try {
-    // Create a new message
-    let message = await Message.create({
-      sender: req.user._id, // Logged in user id,
+      let message = await Message.create({
+      sender: req.user._id,
       content,
       chat: chatId,
-    });
+      replyTo: req.body.replyTo || null,   // ✅ New field
+});
 
     message = await (
       await message.populate("sender", "name pic")
@@ -30,7 +30,7 @@ const sendMessage = async (req, res) => {
       model: "Chat",
       populate: { path: "users", select: "name email pic", model: "User" },
     });
-
+    message = await message.populate("replyTo", "content sender");
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
 
@@ -51,8 +51,8 @@ const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
-      .populate("chat");
-
+      .populate("chat")
+      .populate("replyTo", "content sender");
     res.status(200).json(messages);
   } catch (error) {
     return res.status(400).json({
