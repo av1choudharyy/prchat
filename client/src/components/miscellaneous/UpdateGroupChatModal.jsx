@@ -29,7 +29,7 @@ const UpdateGroupChatModal = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
   const [loading, setLoading] = useState(false);
   const [renameLoading, setRenameLoading] = useState(false);
 
-  const { user, selectedChat, setSelectedChat } = ChatState();
+  const { user, selectedChat, setSelectedChat, darkMode } = ChatState();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -222,12 +222,16 @@ const UpdateGroupChatModal = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
         display={{ base: "flex" }}
         icon={<ViewIcon />}
         onClick={onOpen}
+        bg={darkMode ? "gray.600" : "white"}
+        color={darkMode ? "white" : "black"}
+        _hover={{ bg: darkMode ? "gray.500" : "gray.100" }}
+        borderColor={darkMode ? "gray.500" : "gray.200"}
       />
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
 
-        <ModalContent>
+        <ModalContent bg={darkMode ? "gray.800" : "white"} color={darkMode ? "white" : "black"}>
           <ModalHeader
             display="flex"
             justifyContent="center"
@@ -256,6 +260,10 @@ const UpdateGroupChatModal = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
                 mb="3"
                 value={groupChatName}
                 onChange={(e) => setGroupChatName(e.target.value)}
+                bg={darkMode ? "gray.700" : "white"}
+                color={darkMode ? "white" : "black"}
+                borderColor={darkMode ? "gray.600" : "gray.300"}
+                _placeholder={{ color: darkMode ? "gray.400" : "gray.500" }}
               />
               <Button
                 variant="solid"
@@ -273,6 +281,10 @@ const UpdateGroupChatModal = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
                 placeholder="Add User to group"
                 mb="1"
                 onChange={(e) => handleSearch(e.target.value)}
+                bg={darkMode ? "gray.700" : "white"}
+                color={darkMode ? "white" : "black"}
+                borderColor={darkMode ? "gray.600" : "gray.300"}
+                _placeholder={{ color: darkMode ? "gray.400" : "gray.500" }}
               />
             </FormControl>
 

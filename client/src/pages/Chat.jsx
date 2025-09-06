@@ -5,11 +5,15 @@ import { ChatState } from "../context/ChatProvider";
 import { ChatBox, MyChats, SideDrawer } from "../components";
 
 const Chat = () => {
-  const { user } = ChatState();
+  const { user, darkMode } = ChatState();
   const [fetchAgain, setFetchAgain] = useState(false);
 
   return (
-    <div style={{ width: "100%" }}>
+    <Box 
+      w="100%" 
+      bg={darkMode ? "gray.900" : "white"}
+      minH="100vh"
+    >
       {user && <SideDrawer />}
       <Box
         display="flex"
@@ -17,11 +21,12 @@ const Chat = () => {
         w="100%"
         h="91.5vh"
         p="10px"
+        bg={darkMode ? "gray.900" : "transparent"}
       >
         {user && <MyChats fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />}
         {user && <ChatBox fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />}
       </Box>
-    </div>
+    </Box>
   );
 };
 

@@ -9,6 +9,7 @@ const ChatProvider = ({ children }) => {
   const [selectedChat, setSelectedChat] = useState();
   const [chats, setChats] = useState([]);
   const [notification, setNotification] = useState([]);
+  const [darkMode, setDarkMode] = useState(false);
 
   const navigate = useNavigate();
 
@@ -33,6 +34,8 @@ const ChatProvider = ({ children }) => {
         setChats,
         notification,
         setNotification,
+        darkMode,
+        setDarkMode,
       }}
     >
       {children}

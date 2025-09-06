@@ -17,7 +17,7 @@ import GroupChatModal from "./miscellaneous/GroupChatModal";
 const MyChats = ({ fetchAgain }) => {
   const [loggedUser, setLoggedUser] = useState();
 
-  const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
+  const { selectedChat, setSelectedChat, user, chats, setChats, darkMode } = ChatState();
   const toast = useToast();
   const { onClose } = useDisclosure();
 
@@ -58,20 +58,22 @@ const MyChats = ({ fetchAgain }) => {
       flexDir="column"
       alignItems="center"
       p={3}
-      bg="white"
+      bg={darkMode ? "gray.800" : "white"}
       w={{ base: "100%", md: "31%" }}
       borderRadius="lg"
       borderWidth="1px"
+      borderColor={darkMode ? "gray.600" : "gray.200"}
     >
       <Box
         pb={3}
         px={3}
-        fontSize={{ base: "28px", md: "30px" }}
+        fontSize={{ base: "24px", md: "26px" }}
         fontFamily="Work sans"
         display="flex"
         w="100%"
         justifyContent="space-between"
         alignItems="center"
+        color={darkMode ? "white" : "black"}
       >
         My Chats
         <GroupChatModal>
@@ -79,6 +81,10 @@ const MyChats = ({ fetchAgain }) => {
             display="flex"
             fontSize={{ base: "17px", md: "10px", lg: "17px" }}
             rightIcon={<AddIcon />}
+            bg={darkMode ? "gray.600" : "white"}
+            color={darkMode ? "white" : "black"}
+            _hover={{ bg: darkMode ? "gray.500" : "gray.100" }}
+            borderColor={darkMode ? "gray.500" : "gray.200"}
           >
             New Group Chat
           </Button>
@@ -89,7 +95,7 @@ const MyChats = ({ fetchAgain }) => {
         display="flex"
         flexDir="column"
         p={3}
-        bg="#F8F8F8"
+        bg={darkMode ? "gray.700" : "#F8F8F8"}
         w="100%"
         h="100%"
         borderRadius="lg"
@@ -101,12 +107,24 @@ const MyChats = ({ fetchAgain }) => {
               <Box
                 onClick={() => setSelectedChat(chat)}
                 cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
+                bg={selectedChat === chat ? 
+                  "blue.500" : 
+                  (darkMode ? "gray.600" : "#E8E8E8")
+                }
+                color={selectedChat === chat ? 
+                  "white" : 
+                  (darkMode ? "white" : "black")
+                }
                 px={3}
-                py={2}
+                py={3}
                 borderRadius="lg"
                 key={chat._id}
+                _hover={{
+                  bg: selectedChat === chat ? 
+                    "blue.600" : 
+                    (darkMode ? "gray.500" : "gray.200")
+                }}
+                transition="all 0.2s"
               >
                 <Text>
                   {!chat.isGroupChat
