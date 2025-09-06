@@ -65,9 +65,15 @@ io.on("connection", (socket) => {
   socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
   socket.on("new message", (newMessageRecieved) => {
-    let chat = newMessageRecieved.chat[0]; // Change it to object
+    // Handle both array and object formats for chat
+    let chat = Array.isArray(newMessageRecieved.chat)
+      ? newMessageRecieved.chat[0]
+      : newMessageRecieved.chat;
 
-    if (!chat.users) return console.log("chat.users not defined");
+    if (!chat || !chat.users) {
+      console.log("chat or chat.users not defined", chat);
+      return;
+    }
 
     chat.users.forEach((user) => {
       if (user._id === newMessageRecieved.sender._id) return;
