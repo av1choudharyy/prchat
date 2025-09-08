@@ -37,8 +37,6 @@ services:
     networks:
       - prchat-network
     volumes:
-      - ./:/app
-      - /app/node_modules
       - ./uploads:/app/uploads
 
   frontend:

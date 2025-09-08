@@ -30,10 +30,11 @@ const GroupChatModal = ({ children }) => {
   const toast = useToast();
   const { user, chats, setChats } = ChatState();
 
+  // Handle user search
   const handleSearch = async (query) => {
     setSearch(query);
 
-    if (!query || query === "") {
+    if (!query || query.trim() === "") {
       setSearchResults([]);
       return;
     }
@@ -41,98 +42,105 @@ const GroupChatModal = ({ children }) => {
     try {
       setLoading(true);
 
-      const response = await fetch(`/api/user?search=${search}`, {
+      const response = await fetch(`/api/user?search=${query}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${user.token}`,
         },
       });
-      const data = await response.json();
 
-      setLoading(false);
+      const data = await response.json();
       setSearchResults(data);
+      setLoading(false);
     } catch (error) {
-      return toast({
-        title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+      setLoading(false);
+      toast({
+        title: "Error Occurred!",
+        description: "Failed to load search results",
         status: "error",
         duration: 5000,
         isClosable: true,
         position: "bottom-left",
-        variant: "solid",
       });
     }
   };
 
+  // Add user to selected list
+  const handleGroup = (userToAdd) => {
+    if (selectedUsers.find((u) => u._id === userToAdd._id)) {
+      return toast({
+        title: "User already added",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+        position: "top",
+      });
+    }
+    setSelectedUsers([...selectedUsers, userToAdd]);
+  };
+
+  // Remove user from selected list
+  const handleDelete = (deletedUser) => {
+    setSelectedUsers(selectedUsers.filter((u) => u._id !== deletedUser._id));
+  };
+
+  // Create group chat
   const handleSubmit = async () => {
-    if (!groupChatName || !selectedUsers) {
+    if (!groupChatName || selectedUsers.length === 0) {
       return toast({
         title: "Please fill all the fields",
         status: "warning",
         duration: 5000,
         isClosable: true,
         position: "bottom-left",
-        variant: "solid",
       });
     }
 
     try {
+      const payload = {
+        name: groupChatName,
+        users: JSON.stringify(selectedUsers.map((u) => u._id)), // Send as JSON string
+      };
+
       const response = await fetch("/api/chat/group", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${user.token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: groupChatName,
-          users: JSON.stringify(selectedUsers.map((user) => user._id)),
-        }),
+        body: JSON.stringify(payload),
       });
+
       const data = await response.json();
 
-      setChats([data, ...chats]);
-      onClose(); // Close the modal
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create group chat");
+      }
 
-      return toast({
+      setChats([data, ...chats]);
+      onClose();
+      setGroupChatName("");
+      setSelectedUsers([]);
+      setSearch("");
+      setSearchResults([]);
+
+      toast({
         title: "New Group Chat Created!",
         status: "success",
         duration: 5000,
         isClosable: true,
         position: "bottom-right",
-        variant: "solid",
       });
     } catch (error) {
-      return toast({
-        title: "Error Occured!",
-        description: "Failed to create the chat!",
+      toast({
+        title: "Error Occurred!",
+        description: error.message,
         status: "error",
         duration: 5000,
         isClosable: true,
         position: "bottom-right",
-        variant: "solid",
       });
     }
-  };
-
-  const handleDelete = (deletedUser) => {
-    setSelectedUsers(
-      selectedUsers.filter((selected) => selected._id !== deletedUser._id)
-    );
-  };
-
-  const handleGroup = (userToAdd) => {
-    if (selectedUsers.includes(userToAdd)) {
-      return toast({
-        title: "User already added",
-        status: "warning",
-        duration: 5000,
-        isClosable: true,
-        position: "top",
-        variant: "left-accent",
-      });
-    }
-
-    setSelectedUsers([...selectedUsers, userToAdd]);
   };
 
   return (
@@ -152,40 +160,44 @@ const GroupChatModal = ({ children }) => {
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody display="flex" flexDir="column" alignItems="center">
-            <FormControl>
+            {/* Group Chat Name */}
+            <FormControl mb={3}>
               <Input
                 placeholder="Chat Name"
-                mb={3}
+                value={groupChatName}
                 onChange={(e) => setGroupChatName(e.target.value)}
               />
             </FormControl>
-            <FormControl>
+
+            {/* Add Users */}
+            <FormControl mb={3}>
               <Input
                 placeholder="Add Users eg: Rohit, Piyush, Aman"
-                mb={3}
+                value={search}
                 onChange={(e) => handleSearch(e.target.value)}
               />
             </FormControl>
 
-            {/* Selected users */}
-            <Box display="flex" flexWrap="wrap" w="100%">
-              {selectedUsers.map((user) => (
+            {/* Selected Users */}
+            <Box display="flex" flexWrap="wrap" w="100%" mb={3}>
+              {selectedUsers.map((u) => (
                 <UserBadgeItem
-                  key={user._id}
-                  user={user}
-                  handleFunction={() => handleDelete(user)}
+                  key={u._id}
+                  user={u}
+                  handleFunction={() => handleDelete(u)}
                 />
               ))}
             </Box>
 
+            {/* Search Results */}
             {loading ? (
-              <div>Loading</div>
+              <Box>Loading...</Box>
             ) : (
-              searchResults?.map((user) => (
+              searchResults.map((u) => (
                 <UserListItem
-                  key={user._id}
-                  user={user}
-                  handleFunction={() => handleGroup(user)}
+                  key={u._id}
+                  user={u}
+                  handleFunction={() => handleGroup(u)}
                 />
               ))
             )}
