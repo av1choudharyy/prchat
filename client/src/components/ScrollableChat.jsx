@@ -29,30 +29,11 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 
-// Function to generate suggestions dynamically
-export const getLastMessageSuggestions = (lastMessage, userId) => {
-  if (!lastMessage) return [];
-
-  // If message was from self, no suggestions needed
-  if (lastMessage.sender._id === userId) return [];
-
-  const content = lastMessage.content.toLowerCase();
-
-  if (content.includes("thank"))
-    return ["You're welcome 😊", "No problem", "Anytime!"];
-  if (content.includes("ok") || content.includes("okay"))
-    return ["👍", "Sure", "Alright"];
-  if (content.includes("?")) return ["Yes", "No", "I'll check and get back"];
-
-  return ["Okay", "Thank you 🙏", "Got it ✅"];
-};
-
 const ScrollableChat = ({
   messages,
   typingUsers,
   searchQuery,
   setReplyMessage,
-  scrollToMessage,
   onForwardMessage,
 }) => {
   const { user } = ChatState();
@@ -199,7 +180,7 @@ const ScrollableChat = ({
                   {highlightText(message.content, searchQuery)}
                 </Text>
 
-                {/* Dropdown */}
+                {/* Dropdown - copy, reply, forward */}
                 <Menu>
                   <MenuButton
                     as={IconButton}

@@ -306,8 +306,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           typingHandler={typingHandler}
           replyMessage={replyMessage}
           setReplyMessage={setReplyMessage}
-          messages={messages} // pass for quick replies
-          user={user}
+          lastReceivedMessage={
+            messages.length > 0 ? messages[messages.length - 1].content : ""
+          }
         />
       </Box>
 

@@ -1,8 +1,6 @@
 import { useState, useRef } from "react";
 import { Box, HStack, Input, IconButton, Text } from "@chakra-ui/react";
-import { BsEmojiSmile } from "react-icons/bs";
 import { CloseIcon } from "@chakra-ui/icons";
-import EmojiPicker from "emoji-picker-react";
 
 const MessageInput = ({
   newMessage,
@@ -11,31 +9,22 @@ const MessageInput = ({
   typingHandler,
   replyMessage,
   setReplyMessage,
-  messages,
-  user,
+  lastReceivedMessage,
 }) => {
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const inputRef = useRef();
 
-  // ✅ Emoji click handler
-  const onEmojiClick = (emojiData) => {
-    setNewMessage((prev) => prev + emojiData.emoji);
-    inputRef.current.focus();
-  };
-
-  // ✅ Dynamic Quick Replies
   // ✅ Dynamic Quick Replies
   const getQuickReplies = () => {
-    if (!messages || !messages.length) return [];
-    const lastMsg = messages[messages.length - 1];
-    if (!lastMsg || lastMsg.sender._id === user._id) return [];
+    if (!lastReceivedMessage) return [];
 
-    const content = lastMsg.content.toLowerCase();
+    const content = lastReceivedMessage.toLowerCase();
 
+    // Greetings
     if (/(hi|hello|hey|good morning|good evening)/.test(content)) {
       return ["Hello 👋", "Hey! How are you?", "Good to see you 🙂"];
     }
 
+    // Questions
     if (content.endsWith("?")) {
       if (content.includes("how are you")) {
         return ["I’m good 🙂", "Doing well, thanks!", "All good, you?"];
@@ -47,18 +36,22 @@ const MessageInput = ({
       return ["Yes ✅", "No ❌", "Maybe 🤔"];
     }
 
+    // Thanks
     if (/(thanks|thank you|thx|ty)/.test(content)) {
       return ["You're welcome 🙌", "No problem 🙂", "Anytime!"];
     }
 
+    // Goodbyes
     if (/(bye|good night|see you|take care)/.test(content)) {
       return ["Bye 👋", "Good night 🌙", "Take care ❤️"];
     }
 
+    // Agreement / Confirmation
     if (/(ok|okay|fine|sure|done)/.test(content)) {
       return ["Okay 👍", "Got it ✅", "Cool 😎"];
     }
 
+    // Default fallback
     return ["Okay 👍", "Got it ✅", "Thank you 🙏"];
   };
 
@@ -113,16 +106,6 @@ const MessageInput = ({
           onChange={typingHandler}
           onKeyDown={sendMessage}
         />
-        <IconButton
-          icon={<BsEmojiSmile />}
-          onClick={() => setShowEmojiPicker((prev) => !prev)}
-          variant="ghost"
-        />
-        {showEmojiPicker && (
-          <Box position="absolute" bottom="60px" right="10px" zIndex="10">
-            <EmojiPicker onEmojiClick={onEmojiClick} />
-          </Box>
-        )}
       </HStack>
     </>
   );
