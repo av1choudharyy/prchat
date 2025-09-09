@@ -15,12 +15,13 @@ import { getSender } from "../config/ChatLogics";
 import GroupChatModal from "./miscellaneous/GroupChatModal";
 
 const MyChats = ({ fetchAgain }) => {
-  const [loggedUser, setLoggedUser] = useState();
+  const [loggedUser, setLoggedUser] = useState(null);
 
   const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
   const toast = useToast();
   const { onClose } = useDisclosure();
 
+  // Fetch chats for logged-in user
   const fetchChats = async () => {
     try {
       const response = await fetch(`/api/chat`, {
@@ -29,14 +30,18 @@ const MyChats = ({ fetchAgain }) => {
           Authorization: `Bearer ${user.token}`,
         },
       });
-      const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error("Failed to fetch chats");
+      }
+
+      const data = await response.json();
       setChats(data);
-      onClose(); // Close the side drawer
+      onClose();
     } catch (error) {
-      return toast({
-        title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+      toast({
+        title: "Error Occurred!",
+        description: error.message || "Failed to Load the Chats",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -46,8 +51,10 @@ const MyChats = ({ fetchAgain }) => {
     }
   };
 
+  // Load logged-in user and fetch chats
   useEffect(() => {
-    setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
+    const userInfo = localStorage.getItem("userInfo");
+    if (userInfo) setLoggedUser(JSON.parse(userInfo));
     fetchChats();
     // eslint-disable-next-line
   }, [fetchAgain]);
@@ -63,6 +70,7 @@ const MyChats = ({ fetchAgain }) => {
       borderRadius="lg"
       borderWidth="1px"
     >
+      {/* Header */}
       <Box
         pb={3}
         px={3}
@@ -85,6 +93,7 @@ const MyChats = ({ fetchAgain }) => {
         </GroupChatModal>
       </Box>
 
+      {/* Chat List */}
       <Box
         display="flex"
         flexDir="column"
@@ -95,26 +104,32 @@ const MyChats = ({ fetchAgain }) => {
         borderRadius="lg"
         overflowY="hidden"
       >
-        {chats ? (
-          <Stack overflowY="scroll">
-            {chats.map((chat) => (
-              <Box
-                onClick={() => setSelectedChat(chat)}
-                cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
-                px={3}
-                py={2}
-                borderRadius="lg"
-                key={chat._id}
-              >
-                <Text>
-                  {!chat.isGroupChat
-                    ? getSender(loggedUser, chat.users)
-                    : chat.chatName}
-                </Text>
-              </Box>
-            ))}
+        {chats && chats.length > 0 ? (
+          <Stack overflowY="scroll" spacing={2}>
+            {chats.map((chat) => {
+              // Use chat._id as unique key
+              return (
+                <Box
+                  key={chat._id}
+                  onClick={() => setSelectedChat(chat)}
+                  cursor="pointer"
+                  bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
+                  color={selectedChat === chat ? "white" : "black"}
+                  px={3}
+                  py={2}
+                  borderRadius="lg"
+                  _hover={{ opacity: 0.8 }}
+                >
+                  <Text fontWeight="bold" isTruncated>
+                    {!chat.isGroupChat
+                      ? loggedUser
+                        ? getSender(loggedUser, chat.users)
+                        : "Loading..."
+                      : chat.chatName}
+                  </Text>
+                </Box>
+              );
+            })}
           </Stack>
         ) : (
           <ChatLoading />

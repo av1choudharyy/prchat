@@ -93,10 +93,12 @@ const fetchChats = async (req, res) => {
 const createGroupChat = async (req, res) => {
   // If any of them is missing
   if (!req.body.users || !req.body.name) {
+    console.log("Request Body:", req.body);
+
     return res.status(400).json({
       success: false,
       statusCode: 400,
-      message: "Please Fill all the feilds",
+      message: "Please Fill all the fields",
     });
   }
 
