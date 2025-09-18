@@ -1,6 +1,10 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+import { Avatar, Tooltip, Box } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
+import "../markdown.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 
 import "../App.css";
 import {
@@ -50,7 +54,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
+              <Box
                 style={{
                   backgroundColor: `${
                     message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
@@ -69,9 +73,43 @@ const ScrollableChat = ({ messages, isTyping }) => {
                     ? 3
                     : 10,
                 }}
+                className="markdown-body"
               >
-                {message.content}
-              </span>
+              <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+              >{message.content}
+              </ReactMarkdown>
+
+              <Box
+                fontSize="xs"
+                color={message.sender._id === message.chat[0]?.users[0]?._id ? "black.100" : "black.600"}
+                textAlign="right"
+                mt={1}
+                >
+                {(() => {
+                const msgDate = new Date(message.createdAt);
+                const now = new Date();
+
+                const isToday = msgDate.toDateString() === now.toDateString();
+
+                const yesterday = new Date();
+                yesterday.setDate(now.getDate() - 1);
+                const isYesterday = msgDate.toDateString() === yesterday.toDateString();
+
+                if (isToday) {
+                  return msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                } else if (isYesterday) {
+                  return `Yesterday ${msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+                } else {
+                  return msgDate.toLocaleDateString([], { month: "short", day: "numeric" }) +
+                        " " +
+                        msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                }
+              })()}
+
+              </Box>
+            </Box>
             </div>
           ))}
       </div>
