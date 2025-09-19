@@ -30,10 +30,9 @@ const Login = () => {
   const submitHandler = async () => {
     setLoading(true);
 
-    // If email or password is missing
     if (!credentials.email || !credentials.password) {
       toast({
-        title: "Please Fill all the Feilds",
+        title: "Please Fill all the Fields",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -87,23 +86,32 @@ const Login = () => {
   };
 
   return (
-    <Stack spacing="6">
+    <Stack spacing="6" bg="white" p={6} borderRadius="lg" boxShadow="md">
       <Stack spacing="5">
         <FormControl isRequired>
-          <FormLabel htmlFor="email">Email</FormLabel>
+          <FormLabel htmlFor="email" color="black">
+            Email
+          </FormLabel>
           <Input
             type="email"
             name="email"
             value={credentials.email}
             placeholder="Enter Your Email"
-            onChange={(e) => handleCredentials(e)}
+            onChange={handleCredentials}
+            bg="white"
+            color="black"
+            variant="outline"
+            borderColor="gray.400"
+            _placeholder={{ color: "gray.500" }}   // 👈 Fix placeholder
           />
         </FormControl>
       </Stack>
 
       <Stack spacing="5">
         <FormControl isRequired>
-          <FormLabel htmlFor="password">Password</FormLabel>
+          <FormLabel htmlFor="password" color="black">
+            Password
+          </FormLabel>
           <InputGroup>
             <InputRightElement w="4.5rem">
               <Button h="1.75rem" size="sm" onClick={() => setShow(!show)}>
@@ -115,7 +123,12 @@ const Login = () => {
               name="password"
               value={credentials.password}
               placeholder="Password"
-              onChange={(e) => handleCredentials(e)}
+              onChange={handleCredentials}
+              bg="white"
+              color="black"
+              variant="outline"
+              borderColor="gray.400"
+              _placeholder={{ color: "gray.500" }}   // 👈 Fix placeholder
             />
           </InputGroup>
         </FormControl>
@@ -124,7 +137,7 @@ const Login = () => {
       <Button
         colorScheme="blue"
         width="100%"
-        style={{ marginTop: 15 }}
+        mt={4}
         onClick={submitHandler}
         isLoading={loading}
       >
@@ -142,7 +155,8 @@ const Login = () => {
         <i
           className="fas fa-user-alt"
           style={{ fontSize: "15px", marginRight: 8 }}
-        /> Get Guest User Credentials
+        />{" "}
+        Get Guest User Credentials
       </Button>
     </Stack>
   );

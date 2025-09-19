@@ -1,4 +1,4 @@
-import { Avatar, Tooltip, Box } from "@chakra-ui/react";
+import { Avatar, Tooltip, Box, useColorMode, useColorModeValue } from "@chakra-ui/react"; // ⬅️ added useColorModeValue
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 import "../markdown.css";
@@ -18,11 +18,16 @@ import typingAnimation from "../animations/typing.json";
 
 const ScrollableChat = ({ messages, isTyping }) => {
   const { user } = ChatState();
-
+  const { colorMode } = useColorMode();
   const scrollRef = useRef();
 
+  // ✅ define color values once at the top
+  const userMsgBg = useColorModeValue("#BEE3F8", "blue.600");
+  const otherMsgBg = useColorModeValue("#B9F5D0", "green.600");
+  const textColor = useColorModeValue("black", "white");
+  const timestampColor = useColorModeValue("gray.600", "gray.400");
+
   useEffect(() => {
-    // Scroll to the bottom when messeges render or sender is typing
     scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
@@ -32,7 +37,6 @@ const ScrollableChat = ({ messages, isTyping }) => {
         className="hide-scrollbar"
         style={{ overflowX: "hidden", overflowY: "auto" }}
       >
-        {/* If something inside the messages, render the messages */}
         {messages &&
           messages.map((message, index) => (
             <div ref={scrollRef} key={message._id} style={{ display: "flex" }}>
@@ -56,13 +60,12 @@ const ScrollableChat = ({ messages, isTyping }) => {
 
               <Box
                 style={{
-                  backgroundColor: `${
-                    message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
-                  }`,
+                  backgroundColor:
+                    message.sender._id === user._id ? userMsgBg : otherMsgBg, // ✅ using vars
+                  color: textColor, // ✅ text adapts to mode
                   borderRadius: "20px",
                   padding: "5px 15px",
                   maxWidth: "75%",
-
                   marginLeft: isSameSenderMargin(
                     messages,
                     message,
@@ -75,41 +78,57 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 }}
                 className="markdown-body"
               >
-              <ReactMarkdown
+                <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSanitize]}
-              >{message.content}
-              </ReactMarkdown>
-
-              <Box
-                fontSize="xs"
-                color={message.sender._id === message.chat[0]?.users[0]?._id ? "black.100" : "black.600"}
-                textAlign="right"
-                mt={1}
                 >
-                {(() => {
-                const msgDate = new Date(message.createdAt);
-                const now = new Date();
+                  {message.content}
+                </ReactMarkdown>
 
-                const isToday = msgDate.toDateString() === now.toDateString();
+                <Box
+                  fontSize="xs"
+                  color={timestampColor} // ✅ consistent timestamp color
+                  textAlign="right"
+                  mt={1}
+                >
+                  {(() => {
+                    const msgDate = new Date(message.createdAt);
+                    const now = new Date();
 
-                const yesterday = new Date();
-                yesterday.setDate(now.getDate() - 1);
-                const isYesterday = msgDate.toDateString() === yesterday.toDateString();
+                    const isToday =
+                      msgDate.toDateString() === now.toDateString();
 
-                if (isToday) {
-                  return msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                } else if (isYesterday) {
-                  return `Yesterday ${msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-                } else {
-                  return msgDate.toLocaleDateString([], { month: "short", day: "numeric" }) +
+                    const yesterday = new Date();
+                    yesterday.setDate(now.getDate() - 1);
+                    const isYesterday =
+                      msgDate.toDateString() === yesterday.toDateString();
+
+                    if (isToday) {
+                      return msgDate.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                    } else if (isYesterday) {
+                      return `Yesterday ${msgDate.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`;
+                    } else {
+                      return (
+                        msgDate.toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                        }) +
                         " " +
-                        msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                }
-              })()}
-
+                        msgDate.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      );
+                    }
+                  })()}
+                </Box>
               </Box>
-            </Box>
             </div>
           ))}
       </div>

@@ -168,36 +168,46 @@ const Signup = () => {
   };
 
   return (
-    <Stack spacing="6">
+    <Stack spacing="6" bg="white" p={6} borderRadius="lg" boxShadow="md">
       <Stack spacing="5">
         <FormControl isRequired id="name">
-          <FormLabel htmlFor="name">Name</FormLabel>
+          <FormLabel htmlFor="name" color="black">Name</FormLabel>
           <Input
             type="text"
             name="name"
             value={credentials.name}
             placeholder="Enter Your Name"
             onChange={(e) => handleCredentials(e)}
+            bg="white"
+            color="black"
+            variant="outline"
+            borderColor="gray.400"
+            _placeholder={{ color: "gray.500" }}
           />
         </FormControl>
       </Stack>
 
       <Stack spacing="5">
         <FormControl isRequired id="email">
-          <FormLabel htmlFor="email">Email</FormLabel>
+          <FormLabel htmlFor="email" color="black">Email</FormLabel>
           <Input
             type="email"
             name="email"
             value={credentials.email}
             placeholder="Enter Your Email"
             onChange={(e) => handleCredentials(e)}
+            bg="white"
+            color="black"
+            variant="outline"
+            borderColor="gray.400"
+            _placeholder={{ color: "gray.500" }}
           />
         </FormControl>
       </Stack>
 
       <Stack spacing="5">
         <FormControl isRequired id="password">
-          <FormLabel htmlFor="password">Password</FormLabel>
+          <FormLabel htmlFor="password" color="black">Password</FormLabel>
           <InputGroup>
             <InputRightElement w="4.5rem">
               <Button h="1.75rem" size="sm" onClick={() => setShow(!show)}>
@@ -209,7 +219,11 @@ const Signup = () => {
               name="password"
               value={credentials.password}
               placeholder="Password"
-              onChange={(e) => handleCredentials(e)}
+              onChange={(e) => handleCredentials(e)}bg="white"
+              color="black"
+              variant="outline"
+              borderColor="gray.400"
+              _placeholder={{ color: "gray.500" }}
             />
           </InputGroup>
         </FormControl>
@@ -217,7 +231,7 @@ const Signup = () => {
 
       <Stack spacing="5">
         <FormControl isRequired id="confirmPassword">
-          <FormLabel htmlFor="confirmPassword">Confirm Password</FormLabel>
+          <FormLabel htmlFor="confirmPassword" color="black">Confirm Password</FormLabel>
           <InputGroup>
             <InputRightElement w="4.5rem">
               <Button h="1.75rem" size="sm" onClick={() => setShow(!show)}>
@@ -230,6 +244,11 @@ const Signup = () => {
               value={credentials.confirmPassword}
               placeholder="Confirm Password"
               onChange={(e) => handleCredentials(e)}
+              bg="white"
+              color="black"
+              variant="outline"
+              borderColor="gray.400"
+              _placeholder={{ color: "gray.500" }}
             />
           </InputGroup>
         </FormControl>
@@ -237,7 +256,7 @@ const Signup = () => {
 
       <Stack spacing="5">
         <FormControl id="pic">
-          <FormLabel htmlFor="pic">Upload your Picture</FormLabel>
+          <FormLabel htmlFor="pic" color="black">Upload your Picture</FormLabel>
 
           <InputGroup>
             <InputLeftElement pointerEvents="none">
@@ -257,10 +276,15 @@ const Signup = () => {
                   mr: 4,
                   background: "none",
                   border: "none",
+                  color:"black",
                   fontWeight: "bold",
                 },
               }}
-              onChange={(e) => handleUploadPicture(e)}
+              onChange={(e) => handleUploadPicture(e)}bg="white"
+              color="black"
+              variant="outline"
+              borderColor="gray.400"
+              _placeholder={{ color: "gray.500" }}
             />
           </InputGroup>
         </FormControl>

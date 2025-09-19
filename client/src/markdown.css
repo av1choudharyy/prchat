@@ -33,4 +33,13 @@
   .markdown-body li{
     margin: 0.3em 0;
   }
+  body.chakra-ui-dark .markdown-body {
+    color: #e2e8f0; /* gray.200 */
+  }
+  
+  body.chakra-ui-dark .markdown-body code {
+    background-color: #2d3748; /* gray.800 */
+    color: #fbd38d; /* yellow.300 */
+  }
+  
   

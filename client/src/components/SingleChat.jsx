@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
   IconButton,
+  useColorMode,
   Input,
   Spinner,
   Text,
@@ -28,7 +29,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-
+  const { colorMode, toggleColorMode } = useColorMode();
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
@@ -203,6 +204,13 @@ useEffect(() => {
                 />
               </>
             )}
+              <IconButton
+                aria-label="Toggle Dark Mode"
+                icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+                onClick={toggleColorMode}
+                size="sm"
+                ml={2}
+              />
           </Text>
 
           <Box
@@ -210,7 +218,7 @@ useEffect(() => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg={colorMode === "light" ? "#E8E8E8" : "gray.800"}
             w="100%"
             h="100%"
             borderRadius="lg"
