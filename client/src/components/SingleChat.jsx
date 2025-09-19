@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -11,6 +11,8 @@ import {
   useToast,
   VStack,
   CloseButton,
+  Textarea,
+  Button,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -32,6 +34,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const textareaRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -107,41 +110,50 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   });
 
   const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+    // Only send message with Ctrl/Cmd+Enter
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && newMessage.trim()) {
+      e.preventDefault();
+      await handleSendMessage();
+    }
+    // Let Enter key work normally for new lines (no preventDefault)
+  };
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-            replyTo: replyingTo ? replyingTo._id : null,
-          }),
-        });
-        const data = await response.json();
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setReplyingTo(null); // Clear reply state
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
-      }
+    socket.emit("stop typing", selectedChat._id);
+    try {
+      // Wrap long lines before sending
+      const messageToSend = wrapLongLines(newMessage);
+      setNewMessage(""); // Clear message field before making API call
+
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: messageToSend,
+          chatId: selectedChat._id,
+          replyTo: replyingTo ? replyingTo._id : null,
+        }),
+      });
+      const data = await response.json();
+
+      socket.emit("new message", data);
+      setReplyingTo(null); // Clear reply state
+      setMessages([...messages, data]); // Add new message with existing messages
+    } catch (error) {
+      return toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
     }
   };
 
@@ -168,6 +180,41 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         setTyping(false);
       }
     }, timerLength);
+  };
+
+  // Optimized auto-resize function with debouncing
+  const handleTextareaResize = () => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      // Use requestAnimationFrame for smoother performance
+      requestAnimationFrame(() => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 300) + 'px';
+      });
+    }
+  };
+
+  // Debounced resize function
+  const debouncedResize = useRef(null);
+  const debouncedHandleResize = () => {
+    if (debouncedResize.current) {
+      clearTimeout(debouncedResize.current);
+    }
+    debouncedResize.current = setTimeout(handleTextareaResize, 10);
+  };
+
+  // Function to wrap long lines by inserting line breaks
+  const wrapLongLines = (text, maxLength = 50) => {
+    return text.split('\n').map(line => {
+      if (line.length <= maxLength) return line;
+      
+      // Split long lines into chunks
+      const chunks = [];
+      for (let i = 0; i < line.length; i += maxLength) {
+        chunks.push(line.slice(i, i + maxLength));
+      }
+      return chunks.join('\n');
+    }).join('\n');
   };
 
   // Reply to message handler
@@ -291,23 +338,59 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </Box>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="white"
-                border="1px solid"
-                borderColor="gray.300"
-                placeholder={replyingTo ? "Type your reply..." : "Enter a message.."}
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-                _focus={{
-                  borderColor: "blue.500",
-                  boxShadow: "0 0 0 1px #3182ce"
-                }}
-                _hover={{
-                  borderColor: "blue.300"
-                }}
-              />
+            <FormControl mt="3" isRequired>
+              <HStack spacing={2} align="flex-end">
+                <Textarea
+                  ref={textareaRef}
+                  variant="filled"
+                  bg="white"
+                  border="1px solid"
+                  borderColor="gray.300"
+                  placeholder={replyingTo ? "Type your reply..." : "Enter a message.."}
+                  value={newMessage}
+                  onChange={(e) => {
+                    typingHandler(e);
+                    debouncedHandleResize();
+                  }}
+                  onKeyDown={(e) => sendMessage(e)}
+                  resize="none"
+                  minH="40px"
+                  maxH="300px"
+                  rows={1}
+                  _focus={{
+                    borderColor: "blue.500",
+                    boxShadow: "0 0 0 1px #3182ce"
+                  }}
+                  _hover={{
+                    borderColor: "blue.300"
+                  }}
+                  sx={{
+                    '&::-webkit-scrollbar': {
+                      width: '4px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      width: '6px',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: '#CBD5E0',
+                      borderRadius: '24px',
+                    },
+                  }}
+                />
+                <Button
+                  colorScheme="blue"
+                  size="sm"
+                  px={6}
+                  onClick={handleSendMessage}
+                  isDisabled={!newMessage.trim()}
+                  _disabled={{
+                    opacity: 0.4,
+                    cursor: 'not-allowed',
+                  }}
+                >
+                  Send
+                </Button>
+              </HStack>
             </FormControl>
           </Box>
         </>

@@ -97,7 +97,7 @@ const ScrollableChat = ({ messages, isTyping, onReplyToMessage }) => {
                 )}
 
                 <HStack spacing={2} align="flex-start">
-                  <span
+                  <Box
                     style={{
                       backgroundColor: `${
                         message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
@@ -105,10 +105,12 @@ const ScrollableChat = ({ messages, isTyping, onReplyToMessage }) => {
                       borderRadius: "20px",
                       padding: "5px 15px",
                       flex: 1,
+                      whiteSpace: "pre-wrap",
+                      wordWrap: "break-word",
                     }}
                   >
                     {message.content}
-                  </span>
+                  </Box>
                   <Box
                     className="message-actions"
                     opacity={0}
