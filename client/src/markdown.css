@@ -1,0 +1,45 @@
+/* src/markdown.css */
+.markdown-body h1 {
+    font-size: 2em;
+    margin: 0.67em 0;
+  }
+  .markdown-body h2 {
+    font-size: 1.5em;
+    margin: 0.75em 0;
+  }
+  .markdown-body h3 {
+    font-size: 1.25em;
+    margin: 0.83em 0;
+  }
+  .markdown-body p {
+    margin: 0.5em 0;
+  }
+  .markdown-body code {
+    background: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .markdown-body pre code {
+    display: block;
+    padding: 1em;
+    background: #f0f0f0;
+    border-radius: 6px;
+  }
+  .markdown-body ul,
+  .markdown-body ol {
+    margin-left: 1.2em;
+    padding-left: 0;
+  }
+  .markdown-body li{
+    margin: 0.3em 0;
+  }
+  body.chakra-ui-dark .markdown-body {
+    color: #e2e8f0; /* gray.200 */
+  }
+  
+  body.chakra-ui-dark .markdown-body code {
+    background-color: #2d3748; /* gray.800 */
+    color: #fbd38d; /* yellow.300 */
+  }
+  
+  

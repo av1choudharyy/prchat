@@ -36,7 +36,7 @@ const Home = () => {
         borderRadius="lg"
         borderWidth="1px"
       >
-        <Text fontSize="4xl" fontFamily="Work sans" textAlign="center">
+        <Text fontSize="4xl" fontFamily="Work sans" textAlign="center" color="black">
           PRChat
         </Text>
       </Box>

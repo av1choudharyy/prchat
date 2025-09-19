@@ -19,6 +19,7 @@ import {
   Tooltip,
   useDisclosure,
   useToast,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useState } from "react";
@@ -48,6 +49,9 @@ const SideDrawer = () => {
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+
+  const bgColor = useColorModeValue("white", "gray.800");
+  const textColor = useColorModeValue("black", "white");
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
@@ -136,7 +140,8 @@ const SideDrawer = () => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={bgColor}
+        color={textColor}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
@@ -215,7 +220,7 @@ const SideDrawer = () => {
 
       <Drawer placement="left" isOpen={isOpen} onClose={onClose}>
         <DrawerOverlay />
-        <DrawerContent>
+        <DrawerContent bg={bgColor} color={textColor}>
           <DrawerCloseButton />
           <DrawerHeader>Search Users</DrawerHeader>
 

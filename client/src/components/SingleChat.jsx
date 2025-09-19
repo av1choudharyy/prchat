@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
   IconButton,
+  useColorMode,
   Input,
   Spinner,
   Text,
@@ -16,6 +17,7 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import MarkdownChat from "../MarkdownChat";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -27,7 +29,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-
+  const { colorMode, toggleColorMode } = useColorMode();
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
@@ -83,58 +85,63 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   }, [selectedChat]);
 
-  useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
-      if (
-        !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat[0]._id
-      ) {
-        if (!notification.includes(newMessageRecieved)) {
-          setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
-        }
-      } else {
-        setMessages([...messages, newMessageRecieved]);
+  // ✅ Listen to incoming messages
+useEffect(() => {
+  if (!socket) return;
+
+  const handleNewMessage = (newMessageRecieved) => {
+    if (
+      !selectedChatCompare ||
+      selectedChatCompare._id !== newMessageRecieved.chat[0]._id
+    ) {
+      if (!notification.some((n) => n._id === newMessageRecieved._id)) {
+        setNotification((prev) => [newMessageRecieved, ...prev]);
+        setFetchAgain((prev) => !prev);
       }
-    });
+    } else {
+      // ✅ always append correctly
+      setMessages((prevMessages) => [...prevMessages, newMessageRecieved]);
+    }
+  };
 
-    // eslint-disable-next-line
-  });
+  socket.on("message recieved", handleNewMessage);
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+  // ✅ cleanup to prevent multiple listeners
+  return () => {
+    socket.off("message recieved", handleNewMessage);
+  };
+}, [notification, setFetchAgain]); // ✅ dependency array
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
-        });
-        const data = await response.json();
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
-      }
+  const sendMessageFromMarkdown = async (messageText) => {
+    if (!messageText.trim()) return;
+
+    try {
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: messageText,
+          chatId: selectedChat._id,
+        }),
+      });
+
+      const data = await response.json();
+      socket.emit("new message", data);
+      setMessages([...messages, data]);
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
     }
   };
 
@@ -197,6 +204,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 />
               </>
             )}
+              <IconButton
+                aria-label="Toggle Dark Mode"
+                icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
+                onClick={toggleColorMode}
+                size="sm"
+                ml={2}
+              />
           </Text>
 
           <Box
@@ -204,7 +218,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg={colorMode === "light" ? "#E8E8E8" : "gray.800"}
             w="100%"
             h="100%"
             borderRadius="lg"
@@ -231,7 +245,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </div>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
+            {/* <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
               <Input
                 variant="filled"
                 bg="#E0E0E0"
@@ -239,7 +253,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
               />
-            </FormControl>
+            </FormControl> */}
+            <MarkdownChat onSendMessage={sendMessageFromMarkdown} />
           </Box>
         </>
       ) : (
