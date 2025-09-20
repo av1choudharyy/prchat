@@ -1,0 +1,186 @@
+/* Markdown Chat Styles */
+
+/* General markdown content styling */
+.markdown-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Ensure tables are responsive */
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.markdown-content table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+/* Task lists (GitHub flavored markdown) */
+.markdown-content input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+/* Strikethrough text */
+.markdown-content del {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Images in markdown */
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+/* Emoji support */
+.markdown-content .emoji {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
+/* Editor textarea custom scrollbar */
+.markdown-editor-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.markdown-editor-textarea::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.markdown-editor-textarea::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.markdown-editor-textarea::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Preview area custom scrollbar */
+.markdown-preview-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.markdown-preview-area::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.markdown-preview-area::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.markdown-preview-area::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Typing indicator for markdown mode */
+.markdown-typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  background: #f0f0f0;
+  border-radius: 15px;
+  font-size: 14px;
+  color: #666;
+}
+
+.markdown-typing-indicator span {
+  animation: blink 1.5s infinite;
+}
+
+.markdown-typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.markdown-typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%, 60%, 100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+/* Enhanced message bubble styles */
+.markdown-message-bubble {
+  position: relative;
+  padding: 10px 15px;
+  border-radius: 18px;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+
+.markdown-message-sent {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  margin-left: auto;
+}
+
+.markdown-message-received {
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .markdown-content table th {
+    background-color: #2d2d2d;
+  }
+
+  .markdown-content table th,
+  .markdown-content table td {
+    border-color: #555;
+  }
+
+  .markdown-typing-indicator {
+    background: #2d2d2d;
+    color: #ccc;
+  }
+
+  .markdown-message-received {
+    background: #2d2d2d;
+    color: #f0f0f0;
+  }
+}
+
+/* Export button styles */
+.export-chat-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.export-chat-button:hover {
+  background: #764ba2;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}

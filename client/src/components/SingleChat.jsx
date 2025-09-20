@@ -4,7 +4,6 @@ import {
   Box,
   FormControl,
   IconButton,
-  Input,
   Spinner,
   Text,
   useToast,
@@ -16,8 +15,10 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import MarkdownEditor from "./MarkdownEditor";
+import "../styles/MarkdownChat.css";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5001"; // Backend is running on port 5001
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
@@ -101,40 +102,41 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   });
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
-        });
-        const data = await response.json();
+    socket.emit("stop typing", selectedChat._id);
+    const messageToSend = newMessage; // Store message before clearing
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
-      }
+    try {
+      setNewMessage(""); // Clear message field immediately for better UX
+
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: messageToSend, // Use stored message
+          chatId: selectedChat._id,
+        }),
+      });
+      const data = await response.json();
+
+      socket.emit("new message", data);
+      setMessages([...messages, data]); // Add new message with existing messages
+    } catch (error) {
+      setNewMessage(messageToSend); // Restore message on error
+      return toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
     }
   };
 
@@ -231,13 +233,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </div>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
+            <FormControl mt="3" isRequired>
+              <MarkdownEditor
                 value={newMessage}
                 onChange={(e) => typingHandler(e)}
+                onSend={handleSendMessage}
+                placeholder="Type your message in markdown..."
+                isLoading={false}
               />
             </FormControl>
           </Box>

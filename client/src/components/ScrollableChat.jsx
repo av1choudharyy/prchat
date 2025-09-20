@@ -1,4 +1,4 @@
-import { Avatar, Tooltip } from "@chakra-ui/react";
+import { Avatar, Tooltip, Box } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -11,6 +11,7 @@ import {
 } from "../config/ChatLogics";
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
+import MarkdownMessage from "./MarkdownMessage";
 
 const ScrollableChat = ({ messages, isTyping }) => {
   const { user } = ChatState();
@@ -50,7 +51,7 @@ const ScrollableChat = ({ messages, isTyping }) => {
                 </Tooltip>
               )}
 
-              <span
+              <Box
                 style={{
                   backgroundColor: `${
                     message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
@@ -70,8 +71,11 @@ const ScrollableChat = ({ messages, isTyping }) => {
                     : 10,
                 }}
               >
-                {message.content}
-              </span>
+                <MarkdownMessage
+                  content={message.content}
+                  timestamp={message.createdAt}
+                />
+              </Box>
             </div>
           ))}
       </div>
