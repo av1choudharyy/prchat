@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
@@ -13,6 +13,13 @@ import {
   CloseButton,
   Textarea,
   Button,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  useColorMode,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -22,6 +29,7 @@ import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
 import MessageSearch from "./MessageSearch";
+import MarkdownPreview from "./MarkdownPreview";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -34,11 +42,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [mode, setMode] = useState('write'); // 'write' or 'preview'
   const textareaRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
+  const { colorMode, toggleColorMode } = useColorMode();
+  const chatBg = useColorModeValue("#E8E8E8", "gray.800");
+  const previewBg = useColorModeValue("white", "white");
+  const previewTextColor = useColorModeValue("black", "black");
+  const previewBorderColor = useColorModeValue("gray.300", "gray.400");
+  const textareaBg = useColorModeValue("white", "white");
+  const textareaTextColor = useColorModeValue("black", "black");
+  const textareaBorderColor = useColorModeValue("gray.300", "gray.400");
 
   const fetchMessages = async () => {
     // If no chat is selected, don't do anything
@@ -254,6 +271,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                     selectedChat={selectedChat} 
                     user={user} 
                   />
+                  <IconButton
+                    aria-label="Toggle color mode"
+                    icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+                    onClick={toggleColorMode}
+                    size="sm"
+                    variant="ghost"
+                  />
                   <ProfileModal user={getSenderFull(user, selectedChat.users)} />
                 </HStack>
               </>
@@ -264,6 +288,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   <MessageSearch 
                     selectedChat={selectedChat} 
                     user={user} 
+                  />
+                  <IconButton
+                    aria-label="Toggle color mode"
+                    icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+                    onClick={toggleColorMode}
+                    size="sm"
+                    variant="ghost"
                   />
                   <UpdateGroupChatModal
                     fetchAgain={fetchAgain}
@@ -280,7 +311,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg={chatBg}
             w="100%"
             h="100%"
             borderRadius="lg"
@@ -339,58 +370,122 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
 
             <FormControl mt="3" isRequired>
-              <HStack spacing={2} align="flex-end">
-                <Textarea
-                  ref={textareaRef}
-                  variant="filled"
-                  bg="white"
-                  border="1px solid"
-                  borderColor="gray.300"
-                  placeholder={replyingTo ? "Type your reply..." : "Enter a message.."}
-                  value={newMessage}
-                  onChange={(e) => {
-                    typingHandler(e);
-                    debouncedHandleResize();
-                  }}
-                  onKeyDown={(e) => sendMessage(e)}
-                  resize="none"
-                  minH="40px"
-                  maxH="300px"
-                  rows={1}
-                  _focus={{
-                    borderColor: "blue.500",
-                    boxShadow: "0 0 0 1px #3182ce"
-                  }}
-                  _hover={{
-                    borderColor: "blue.300"
-                  }}
-                  sx={{
-                    '&::-webkit-scrollbar': {
-                      width: '4px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      width: '6px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: '#CBD5E0',
-                      borderRadius: '24px',
-                    },
-                  }}
-                />
-                <Button
-                  colorScheme="blue"
-                  size="sm"
-                  px={6}
-                  onClick={handleSendMessage}
-                  isDisabled={!newMessage.trim()}
-                  _disabled={{
-                    opacity: 0.4,
-                    cursor: 'not-allowed',
-                  }}
-                >
-                  Send
-                </Button>
-              </HStack>
+              <Tabs 
+                index={mode === 'write' ? 0 : 1} 
+                onChange={(index) => setMode(index === 0 ? 'write' : 'preview')}
+                variant="enclosed"
+                size="sm"
+              >
+                <TabList>
+                  <Tab>Write</Tab>
+                  <Tab>Preview</Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel p={0} pt={2}>
+                    <HStack spacing={2} align="flex-end">
+                      <Textarea
+                        ref={textareaRef}
+                        variant="filled"
+                        bg={textareaBg}
+                        color={textareaTextColor}
+                        border="1px solid"
+                        borderColor={textareaBorderColor}
+                        placeholder={replyingTo ? "Type your reply..." : "Enter a message... Try markdown: **bold**, *italic*, `code`, # headings, - lists"}
+                        value={newMessage}
+                        onChange={(e) => {
+                          typingHandler(e);
+                          debouncedHandleResize();
+                        }}
+                        onKeyDown={(e) => sendMessage(e)}
+                        resize="none"
+                        minH="40px"
+                        maxH="300px"
+                        rows={1}
+                        _focus={{
+                          borderColor: "blue.500",
+                          boxShadow: "0 0 0 1px #3182ce"
+                        }}
+                        _hover={{
+                          borderColor: "blue.300"
+                        }}
+                        _placeholder={{
+                          color: "gray.500"
+                        }}
+                        sx={{
+                          backgroundColor: 'white !important',
+                          color: 'black !important',
+                          '&::-webkit-scrollbar': {
+                            width: '4px',
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            width: '6px',
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            background: '#CBD5E0',
+                            borderRadius: '24px',
+                          },
+                        }}
+                      />
+                      <Button
+                        colorScheme="blue"
+                        size="sm"
+                        px={6}
+                        onClick={handleSendMessage}
+                        isDisabled={!newMessage.trim()}
+                        _disabled={{
+                          opacity: 0.4,
+                          cursor: 'not-allowed',
+                        }}
+                      >
+                        Send
+                      </Button>
+                    </HStack>
+                  </TabPanel>
+                  <TabPanel p={0} pt={2}>
+                    <HStack spacing={2} align="flex-start">
+                      <Box
+                        minH="40px"
+                        maxH="300px"
+                        p={3}
+                        border="1px solid"
+                        borderColor={previewBorderColor}
+                        borderRadius="md"
+                        bg={previewBg}
+                        color={previewTextColor}
+                        overflowY="auto"
+                        flex={1}
+                        sx={{
+                          '&::-webkit-scrollbar': {
+                            width: '4px',
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            width: '6px',
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            background: '#CBD5E0',
+                            borderRadius: '24px',
+                          },
+                        }}
+                      >
+                        <MarkdownPreview content={newMessage} />
+                      </Box>
+                      <Button
+                        colorScheme="blue"
+                        size="sm"
+                        px={6}
+                        onClick={handleSendMessage}
+                        isDisabled={!newMessage.trim()}
+                        _disabled={{
+                          opacity: 0.4,
+                          cursor: 'not-allowed',
+                        }}
+                      >
+                        Send
+                      </Button>
+                    </HStack>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
             </FormControl>
           </Box>
         </>

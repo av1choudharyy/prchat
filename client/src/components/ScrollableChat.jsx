@@ -1,4 +1,4 @@
-import { Avatar, Tooltip, Text, Box, HStack } from "@chakra-ui/react";
+import { Avatar, Tooltip, Text, Box, HStack, useColorModeValue } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 
@@ -12,9 +12,12 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 import MessageActions from "./MessageActions";
+import MarkdownPreview from "./MarkdownPreview";
 
 const ScrollableChat = ({ messages, isTyping, onReplyToMessage }) => {
   const { user } = ChatState();
+  const messageBg = useColorModeValue('#BEE3F8', '#2D3748');
+  const otherMessageBg = useColorModeValue('#B9F5D0', '#1A202C');
 
   const scrollRef = useRef();
 
@@ -100,16 +103,14 @@ const ScrollableChat = ({ messages, isTyping, onReplyToMessage }) => {
                   <Box
                     style={{
                       backgroundColor: `${
-                        message.sender._id === user._id ? "#BEE3F8" : "#B9F5D0"
+                        message.sender._id === user._id ? messageBg : otherMessageBg
                       }`,
                       borderRadius: "20px",
                       padding: "5px 15px",
                       flex: 1,
-                      whiteSpace: "pre-wrap",
-                      wordWrap: "break-word",
                     }}
                   >
-                    {message.content}
+                    <MarkdownPreview content={message.content} />
                   </Box>
                   <Box
                     className="message-actions"
