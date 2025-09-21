@@ -4,11 +4,11 @@ import {
   Box,
   FormControl,
   IconButton,
-  Input,
   Spinner,
   Text,
   useToast,
   useColorMode,
+  Tooltip
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -17,6 +17,7 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import MarkdownMessageInput from "./MarkdownMessageInput";
 
 const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
 let socket, selectedChatCompare;
@@ -35,16 +36,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [replyTo, setReplyTo] = useState(null);
   const [forwardMessage, setForwardMessage] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [markdownMessage, setMarkdownMessage] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [audioChunks, setAudioChunks] = useState([]);
+  const [recordedAudio, setRecordedAudio] = useState(null);
   const fileInputRef = useRef();
   const imageInputRef = useRef();
-
+  const audioInputRef = useRef();
+  const markdownInputRef = useRef();
+  console.log("check message", markdownMessage, newMessage);
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
   const { colorMode } = useColorMode();
 
   const fetchMessages = async () => {
-    // If no chat is selected, don't do anything
     if (!selectedChat) {
       return;
     }
@@ -78,9 +85,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  const emojiPickerRef = useRef(null); // 👈 ref for emoji dropdown
+  const emojiPickerRef = useRef(null);
 
-  // Close emoji picker on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -109,19 +115,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
-    fetchMessages(); // Whenever users switches chat, call the function again
+    fetchMessages();
     selectedChatCompare = selectedChat;
-    // eslint-disable-next-line
   }, [selectedChat]);
 
-  // Add ref for file options dropdown
   const fileOptionsRef = useRef(null);
 
-  // Close file options on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -151,22 +153,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       ) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
-          setFetchAgain(!fetchAgain); // Fetch all the chats again
+          setFetchAgain(!fetchAgain);
         }
       } else {
         setMessages([...messages, newMessageRecieved]);
       }
     });
 
-    // eslint-disable-next-line
   });
-  const sendMessage = async (e) => {
-    if (e.key === "Enter" && newMessage) {
+  const sendMessage = async (e, messageContent = markdownMessage) => {
+    if (e.key === "Enter" && messageContent) {
       socket.emit("stop typing", selectedChat._id);
       try {
-        const messageContent = newMessage;
-        setNewMessage("");
-
+        setMarkdownMessage("");
         const response = await fetch("/api/message", {
           method: "POST",
           headers: {
@@ -176,16 +175,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           body: JSON.stringify({
             content: messageContent,
             chatId: selectedChat._id,
-            replyTo: replyTo ? replyTo._id : null, // ✅ include replyTo if set
+            replyTo: replyTo ? replyTo._id : null,
           }),
         });
-
         const data = await response.json();
-
         socket.emit("new message", data);
         setMessages([...messages, data]);
-
-        // ✅ Clear reply/forward after sending
         setReplyTo(null);
         setForwardMessage(null);
       } catch (error) {
@@ -202,38 +197,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  const typingHandler = (e) => {
-    setNewMessage(e.target.value);
-
-    // Typing Indicator Logic
-    if (!socketConnected) return;
-
-    if (!typing) {
-      setTyping(true);
-      socket.emit("typing", selectedChat._id);
-    }
-
-    let lastTypingTime = new Date().getTime();
-    let timerLength = 3000;
-
-    setTimeout(() => {
-      let timeNow = new Date().getTime();
-      let timeDiff = timeNow - lastTypingTime;
-
-      if (timeDiff >= timerLength && typing) {
-        socket.emit("stop typing", selectedChat._id);
-        setTyping(false);
-      }
-    }, timerLength);
-  };
-
-  // Update matchIndexes and currentMatch when searchValue or messages change
   useEffect(() => {
     if (searchValue) {
       const indexes = messages
         .map((msg, i) =>
           msg.content &&
-          msg.content.toLowerCase().includes(searchValue.toLowerCase())
+            msg.content.toLowerCase().includes(searchValue.toLowerCase())
             ? i
             : null
         )
@@ -272,7 +241,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("new message", data);
       setMessages([...messages, data]);
 
-      // ✅ Clear reply/forward after sending
       setReplyTo(null);
       setForwardMessage(null);
       setNewMessage("");
@@ -333,22 +301,57 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  // Reply handler
   const handleReplyMessage = (msg) => {
     setReplyTo(msg);
     setNewMessage("");
   };
 
-  // Forward handler (simple: set message to forward, then send as new message)
   const handleForwardMessage = (msg) => {
     setForwardMessage(msg);
     setNewMessage(msg.content || "");
   };
 
-  // Emoji handler
+  const insertEmojiAtCursor = (emoji) => {
+    const textarea = markdownInputRef.current;
+    if (!textarea) {
+      setMarkdownMessage((prev) => prev + emoji);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = markdownMessage;
+    const before = value.substring(0, start);
+    const after = value.substring(end);
+    setMarkdownMessage(before + emoji + after);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+    }, 0);
+  };
+
   const handleEmojiClick = (emoji) => {
-    setNewMessage((prev) => prev + emoji);
+    insertEmojiAtCursor(emoji);
     setShowEmojiPicker(false);
+  };
+
+  const exportChatAsMarkdown = () => {
+    if (!messages || messages.length === 0) return;
+    let md = `# Chat with ${selectedChat.isGroupChat ? selectedChat.chatName : getSender(user, selectedChat.users)}\n\n`;
+    messages.forEach(msg => {
+      const sender = msg.sender?.name || "Unknown";
+      const time = msg.createdAt ? new Date(msg.createdAt).toLocaleString() : "";
+      md += `**${sender}** _${time}_\n`;
+      md += `${msg.content || ""}\n\n`;
+    });
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chat-history.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -361,6 +364,86 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       }
     }
   }, [selectedChat, setSelectedChat]);
+
+  const startRecording = async () => {
+    setRecordedAudio(null);
+    setAudioChunks([]);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({
+        title: "Recording not supported",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new window.MediaRecorder(stream);
+      setMediaRecorder(recorder);
+      let chunks = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      recorder.onstop = () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        setRecordedAudio(audioBlob);
+        setAudioChunks([]);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      recorder.start();
+      setRecording(true);
+    } catch (err) {
+      toast({
+        title: "Microphone access denied",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && recording) {
+      mediaRecorder.stop();
+      setRecording(false);
+    }
+  };
+
+  const sendRecordedAudio = async () => {
+    if (!recordedAudio) return;
+    try {
+      const formData = new FormData();
+      formData.append("chatId", selectedChat._id);
+      formData.append("file", recordedAudio, "voice-message.webm");
+      formData.append("type", "audio");
+      if (replyTo) formData.append("replyTo", replyTo._id);
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+      socket.emit("new message", data);
+      setMessages([...messages, data]);
+      setReplyTo(null);
+      setForwardMessage(null);
+      setRecordedAudio(null);
+      setAudioChunks([]);
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: "Failed to send audio",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
+    }
+  };
 
   return (
     <>
@@ -424,6 +507,20 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             overflowY="hidden"
             color={colorMode === "dark" ? "whiteAlpha.900" : "black"}
           >
+            <Tooltip title="Export chat">
+              <Box display="flex" justifyContent="flex-end" mb={2}>
+                <IconButton
+                  icon={<span role="img" aria-label="export">Export</span>}
+                  colorScheme="black"
+                  variant="outline"
+                  onClick={exportChatAsMarkdown}
+                  aria-label="Export chat as markdown"
+                  size="sm"
+                  style={{ paddingInline: 4 }}
+                  isDisabled={messages.length === 0}
+                />
+              </Box>
+            </Tooltip>
             {loading ? (
               <Spinner
                 size="xl"
@@ -478,10 +575,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                     cursor: "pointer",
                     fontSize: "14px",
                   }}
-                 onClick={() => {
-  setNewMessage(msg);
-  sendMessage({ key: "Enter", preventDefault: () => {} });  // ✅ instantly send
-}}
+                  onClick={() => {
+                    setMarkdownMessage(msg);
+                    sendMessage({ key: "Enter", preventDefault: () => { } });  // ✅ instantly send
+                  }}
 
                   type="button"
                 >
@@ -544,10 +641,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               </div>
             )}
 
+
             <FormControl
               key={colorMode}
               mt="3"
-              onKeyDown={(e) => sendMessage(e)}
               isRequired
               style={{
                 position: "relative",
@@ -555,8 +652,19 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 alignItems: "center",
                 background: colorMode === "dark" ? "gray.700" : "white",
                 borderRadius: "8px",
+                width: "100%",
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (markdownMessage.trim()) {
+                    sendMessage({ key: "Enter", preventDefault: () => { } }, markdownMessage);
+                    setMarkdownMessage("");
+                  }
+                }
               }}
             >
+
               {/* Plus icon for file/image upload */}
               <IconButton
                 icon={<AddIcon />}
@@ -636,7 +744,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                       border: "none",
                       cursor: "pointer",
                       textAlign: "left",
-                       color:"black",
+                      color: "black",
                     }}
                     onClick={() => imageInputRef.current.click()}
                   >
@@ -648,11 +756,24 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                       border: "none",
                       cursor: "pointer",
                       textAlign: "left",
-                      color:"black",
+                      color: "black",
                     }}
                     onClick={() => fileInputRef.current.click()}
                   >
                     Upload File
+                  </button>
+                  <button
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      color: "black",
+                    }}
+                    onClick={startRecording}
+                    disabled={recording}
+                  >
+                    Record Audio
                   </button>
                   <input
                     type="file"
@@ -669,33 +790,67 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   />
                 </div>
               )}
-              <Input
-                variant="filled"
-                bg={colorMode === "dark" ? "gray.700" : "#E0E0E0"}
-                color={colorMode === "dark" ? "whiteAlpha.900" : "black"}
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-                onKeyDown={(e) => sendMessage(e)}
-                style={{ flex: 1 }}
-                aria-label="Type your message"
-              />
+              <Box flex="1" width="70%">
+                <MarkdownMessageInput
+                  value={markdownMessage}
+                  onChange={setMarkdownMessage}
+                  placeholder="Type your message here..."
+                  // style={{ width: "100%" }}
+                  inputRef={markdownInputRef}
+                  id="markdown-message-input"
+                />
+              </Box>
               <IconButton
-                icon={
-                  <span role="img" aria-label="send">
-                    ➤
-                  </span>
-                }
+                icon={<span role="img" aria-label="send">➤</span>}
                 colorScheme="blue"
                 variant="ghost"
-                onClick={() =>
-                  newMessage.trim() &&
-                  sendMessage({ key: "Enter", preventDefault: () => {} })
-                }
+                onClick={() => {
+                  if (markdownMessage.trim()) {
+                    sendMessage({ key: "Enter", preventDefault: () => { } }, markdownMessage);
+                    setMarkdownMessage("");
+                  }
+                }}
                 aria-label="Send message"
                 ml={2}
+                isDisabled={!markdownMessage.trim()}
               />
             </FormControl>
+
+            {/* Recorder UI */}
+            {recording && (
+              <div style={{ margin: "8px 0", display: "flex", alignItems: "center", gap: "12px" }}>
+                <span style={{ color: "#3182ce", fontWeight: "bold" }}>Recording...</span>
+                <IconButton
+                  icon={<span role="img" aria-label="stop">⏹️</span>}
+                  colorScheme="red"
+                  variant="outline"
+                  onClick={stopRecording}
+                  aria-label="Stop recording"
+                  size="sm"
+                />
+              </div>
+            )}
+            {recordedAudio && (
+              <div style={{ margin: "8px 0", display: "flex", alignItems: "center", gap: "12px" }}>
+                <audio controls src={recordedAudio ? URL.createObjectURL(recordedAudio) : undefined} style={{ maxWidth: "250px" }} />
+                <IconButton
+                  icon={<span role="img" aria-label="send">➤</span>}
+                  colorScheme="blue"
+                  variant="solid"
+                  onClick={sendRecordedAudio}
+                  aria-label="Send audio"
+                  size="sm"
+                />
+                <IconButton
+                  icon={<span role="img" aria-label="cancel">❌</span>}
+                  colorScheme="gray"
+                  variant="ghost"
+                  onClick={() => setRecordedAudio(null)}
+                  aria-label="Cancel audio"
+                  size="sm"
+                />
+              </div>
+            )}
           </Box>
         </>
       ) : (

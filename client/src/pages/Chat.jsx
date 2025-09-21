@@ -20,8 +20,8 @@ const Chat = () => {
         h="91.5vh"
         p="10px"
       >
-        {user && <MyChats fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} colorMode={colorMode} />}
-        {user && <ChatBox fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} colorMode={colorMode} />}
+        {user && <MyChats fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} colorMode={colorMode} />} 
+         {user && <ChatBox fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} colorMode={colorMode} />} 
       </Box>
     </Box>
   );

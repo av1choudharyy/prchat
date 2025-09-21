@@ -107,7 +107,7 @@ const MyChats = ({ fetchAgain, colorMode }) => {
       >
         {chats ? (
           <Stack overflowY="scroll">
-            {chats.map((chat) => (
+            {chats?.map((chat) => (
               <Box
                 onClick={() => {
                   localStorage.setItem("selectedChat", JSON.stringify(chat));
@@ -137,7 +137,7 @@ const MyChats = ({ fetchAgain, colorMode }) => {
               >
                 <Text>
                   {!chat.isGroupChat
-                    ? getSender(loggedUser, chat.users)
+                    ? getSender(loggedUser, chat?.users)
                     : chat.chatName}
                 </Text>
               </Box>

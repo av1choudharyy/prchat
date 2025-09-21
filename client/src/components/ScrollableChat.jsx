@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Avatar, Tooltip, useColorMode } from "@chakra-ui/react";
 import Lottie from "lottie-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import "../App.css";
 import { ChatState } from "../context/ChatProvider";
@@ -12,9 +14,8 @@ const ScrollableChat = ({
   searchValue,
   matchIndexes = [],
   currentMatch = 0,
-  setCurrentMatch = () => {},
-  onCopyMessage = () => {},
-  onReplyMessage = () => {},
+  onCopyMessage = () => { },
+  onReplyMessage = () => { },
 }) => {
   const { user } = ChatState();
   const { colorMode } = useColorMode();
@@ -51,16 +52,16 @@ const ScrollableChat = ({
     }
   }, [currentMatch, matchIndexes]);
 
+
   const highlightText = (text, keyword) => {
     if (!keyword) return text;
     const regex = new RegExp(`(${keyword})`, "gi");
     return text.split(regex).map((part, i) =>
       regex.test(part) ? (
         <span
-          key={i}
           style={{
-            background: "#ffe066",
-            color: "#222",
+            background: "#fff700",
+            color: "#000",
             fontWeight: "bold",
             borderRadius: "3px",
             padding: "0 2px",
@@ -82,6 +83,8 @@ const ScrollableChat = ({
     setShowEmojiPickerFor(null);
   };
 
+  const safeMessages = Array.isArray(messages) ? messages : [];
+
   return (
     <>
       <div
@@ -96,8 +99,8 @@ const ScrollableChat = ({
           background: colorMode === "dark" ? "gray.900" : "white",
         }}
       >
-        {messages &&
-          messages.map((message, index) => {
+        {safeMessages &&
+          safeMessages.map((message, index) => {
             const isMatch =
               searchValue &&
               message.content &&
@@ -144,8 +147,8 @@ const ScrollableChat = ({
                         ? "teal.700"
                         : "#BEE3F8"
                       : colorMode === "dark"
-                      ? "gray.700"
-                      : "#fff",
+                        ? "gray.700"
+                        : "#fff",
                     border: "1px solid #e2e8f0",
                     borderRadius: "18px",
                     padding: "8px 18px",
@@ -164,7 +167,7 @@ const ScrollableChat = ({
                       fontSize: "12px",
                       color: colorMode === "dark" ? "gray.400" : "gray.600",
                       marginTop: "4px",
-                      marginLeft: "auto", // shift for alignment with avatar
+                      marginLeft: "auto",
                       textAlign: isOwn ? "right" : "left",
                     }}
                   >
@@ -173,7 +176,6 @@ const ScrollableChat = ({
                       timeStyle: "short",
                     })}
                   </div>
-                  {/* ✅ Reply Preview */}
                   {message.replyTo && (
                     <div
                       style={{
@@ -221,17 +223,43 @@ const ScrollableChat = ({
                             ? message.replyTo.content.substring(0, 50) + "…"
                             : message.replyTo.content
                           : message.replyTo.file
-                          ? "📎 File/Media"
-                          : ""}
+                            ? "📎 File/Media"
+                            : ""}
                       </div>
                     </div>
                   )}
 
-                  {/* ✅ Text */}
-                  {message.content &&
-                    highlightText(message.content, searchValue)}
+                  {message.content && (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => (
+                          <p>
+                            {React.Children.map(children, (child) =>
+                              typeof child === "string" ? highlightText(child, searchValue) : child
+                            )}
+                          </p>
+                        ),
+                        strong: ({ children }) => (
+                          <strong>
+                            {React.Children.map(children, (child) =>
+                              typeof child === "string" ? highlightText(child, searchValue) : child
+                            )}
+                          </strong>
+                        ),
+                        em: ({ children }) => (
+                          <em>
+                            {React.Children.map(children, (child) =>
+                              typeof child === "string" ? highlightText(child, searchValue) : child
+                            )}
+                          </em>
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  )}
 
-                  {/* ✅ Image file */}
                   {message.file &&
                     (message.fileType === "image" ||
                       /\.(png|jpg|jpeg|gif)$/i.test(message.file)) && (
@@ -250,10 +278,20 @@ const ScrollableChat = ({
                       </div>
                     )}
 
-                  {/* ✅ Other files */}
+                  {message.file &&
+                    (message.fileType === "audio" || /\.(webm|mp3|wav|ogg)$/i.test(message.file)) && (
+                      <div style={{ marginTop: "8px" }}>
+                        <audio controls style={{ width: "100%", maxWidth: "250px" }}>
+                          <source src={message.file} />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
+
                   {message.file &&
                     message.fileType !== "image" &&
-                    !/\.(png|jpg|jpeg|gif)$/i.test(message.file) && (
+                    message.fileType !== "audio" &&
+                    !/\.(png|jpg|jpeg|gif|webm|mp3|wav|ogg)$/i.test(message.file) && (
                       <div style={{ marginTop: "8px" }}>
                         <a
                           href={message.file}
@@ -271,7 +309,6 @@ const ScrollableChat = ({
                       </div>
                     )}
 
-                  {/* ✅ Emoji reactions */}
                   {emojiReactions[message._id] && (
                     <div
                       style={{
@@ -299,7 +336,6 @@ const ScrollableChat = ({
                     </div>
                   )}
 
-                  {/* ✅ Hover actions */}
                   <span
                     style={{
                       position: "absolute",
@@ -364,9 +400,9 @@ const ScrollableChat = ({
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
                           <polyline points="9 17 4 12 9 7"></polyline>
                           <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
@@ -396,7 +432,7 @@ const ScrollableChat = ({
                           style={{
                             position: "absolute",
                             top: "40px",
-                            left: isOwn?"-250px":undefined,
+                            left: isOwn ? "-250px" : undefined,
 
                             background: "#fff",
                             border: "1px solid #ccc",
@@ -455,42 +491,6 @@ const ScrollableChat = ({
           <Lottie animationData={typingAnimation} loop={true} />
         </div>
       ) : null}
-
-      {searchValue && matchIndexes.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            display: "flex",
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <button
-            onClick={() =>
-              setCurrentMatch((prev) =>
-                prev === 0 ? matchIndexes.length - 1 : prev - 1
-              )
-            }
-            style={{ marginRight: 8 }}
-          >
-            &#8592;
-          </button>
-          <span>
-            {currentMatch + 1} / {matchIndexes.length}
-          </span>
-          <button
-            onClick={() =>
-              setCurrentMatch((prev) =>
-                prev === matchIndexes.length - 1 ? 0 : prev + 1
-              )
-            }
-            style={{ marginLeft: 8 }}
-          >
-            &#8594;
-          </button>
-        </div>
-      )}
     </>
   );
 };

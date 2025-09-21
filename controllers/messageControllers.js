@@ -19,6 +19,8 @@ const sendMessage = async (req, res) => {
     fileType: req.file
       ? req.file.mimetype.startsWith("image")
         ? "image"
+        : req.file.mimetype.startsWith("audio")
+        ? "audio"
         : "file"
       : null,
     replyTo: replyTo || null, // ✅ support replies

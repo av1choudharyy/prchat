@@ -1,9 +1,11 @@
 export const getSender = (loggedUser, users) => {
-  return users?.[0]?._id === loggedUser?._id ? users[1].name : users[0].name;
+  // Guard clause to prevent errors if users is not a valid array or has less than 2 elements
+  if (!Array.isArray(users) || users.length < 2) return "";
+  return users[0]?._id === loggedUser?._id ? users[1]?.name ?? "" : users[0]?.name ?? "";
 };
 
 export const getSenderFull = (loggedUser, users) => {
-  return users[0]._id === loggedUser._id ? users[1] : users[0];
+  return users?.[0]._id === loggedUser._id ? users[1] : users[0];
 };
 
 export const isSameSender = (
