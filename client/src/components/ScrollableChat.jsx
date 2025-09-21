@@ -83,9 +83,9 @@ const ScrollableChat = ({
     >
       {/* ─── Theme Toggle (Top-Center) ──────────────────────── */}
       <Box
-        position="absolute"
-        top="12px"
-        left="50%"
+        position="fixed"
+        top="85px"
+        left="56%"
         transform="translateX(-50%)"
         zIndex="10"
       >
@@ -447,9 +447,9 @@ const ScrollableChat = ({
       {/* ─── Typing Spinner (Bottom-Left) ───────────────────────── */}
       {isPreviewMode && (
         <Box
-          position="absolute"
-          bottom="16px"
-          left="16px"
+          position="fixed"
+          top="85px"
+        left="47%"
           display="flex"
           alignItems="center"
           bg={wrapperBg}
@@ -467,9 +467,9 @@ const ScrollableChat = ({
       {/* ─── Lottie Animation (Above Spinner) ──────────────────── */}
       {typing && (
         <Box
-          position="absolute"
-          bottom="56px"
-          left="16px"
+          position="fixed"
+          top="85px"
+        left="47%"
           width="48px"
           height="48px"
         >
