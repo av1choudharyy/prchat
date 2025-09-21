@@ -21,6 +21,7 @@ import {
   useColorMode,
   useColorModeValue,
 } from "@chakra-ui/react";
+import EmojiPicker from "./EmojiPicker";
 import io from "socket.io-client";
 
 import { ChatState } from "../context/ChatProvider";
@@ -133,6 +134,25 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       await handleSendMessage();
     }
     // Let Enter key work normally for new lines (no preventDefault)
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentMessage = newMessage;
+      
+      // Insert emoji at cursor position
+      const newText = currentMessage.substring(0, start) + emoji + currentMessage.substring(end);
+      setNewMessage(newText);
+      
+      // Set cursor position after the emoji
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+      }, 0);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -426,6 +446,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                           },
                         }}
                       />
+                      <EmojiPicker 
+                        onEmojiSelect={handleEmojiSelect}
+                        isDisabled={false}
+                      />
                       <Button
                         colorScheme="blue"
                         size="sm"
@@ -469,6 +493,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                       >
                         <MarkdownPreview content={newMessage} />
                       </Box>
+                      <EmojiPicker 
+                        onEmojiSelect={handleEmojiSelect}
+                        isDisabled={false}
+                      />
                       <Button
                         colorScheme="blue"
                         size="sm"
