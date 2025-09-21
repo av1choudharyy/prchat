@@ -65,6 +65,7 @@ const ScrollableChat = ({
   const fileHoverBg     = isDark ? "gray.600" : "gray.100";
   const fileBorder      = isDark ? "gray.500" : "gray.200";
   const highlightBg     = isDark ? "yellow.500" : "yellow.300";
+  const emojiOptions = ["❤️", "😂", "👍", "🔥", "😢"];
   const highlightShadow = isDark
     ? "0 0 0 2px #D69E2E"
     : "0 0 0 2px #ECC94B";
@@ -437,6 +438,56 @@ const ScrollableChat = ({
                   </Box>
 
                   {/* … Emoji bar & reactions unchanged … */}
+                  
+                  {/* Emoji hover bar */}
+                  {hoveredMessageId === message._id && (
+                    <Box
+                      position="absolute"
+                      top="-35px"
+                      left={isOwnMessage ? "auto" : "0"}
+                      right={isOwnMessage ? "0" : "auto"}
+                      zIndex={10}
+                      display="flex"
+                      gap="6px"
+                      background="white"
+                      padding="4px 8px"
+                      borderRadius="md"
+                      boxShadow="md"
+                      maxWidth="100vw"
+                      minWidth="fit-content"
+                      overflowX="auto"
+                    >
+                      {emojiOptions.map((emoji) => (
+                        <Text
+                          key={emoji}
+                          fontSize="lg"
+                          cursor="pointer"
+                          onClick={() => onReact(message._id, emoji)}
+                          _hover={{ transform: "scale(1.2)" }}
+                        >
+                          {emoji}
+                        </Text>
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Reactions */}
+                  {message.reactions?.length > 0 && (
+                    <Box mt={1} display="flex" gap={1} flexWrap="wrap">
+                      {message.reactions.map((r, idx) => (
+                        <Text
+                          key={idx}
+                          fontSize="sm"
+                          px={2}
+                          py={1}
+                          bg="gray.200"
+                          borderRadius="md"
+                        >
+                          {r.emoji}
+                        </Text>
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               </Box>
             </Fragment>
