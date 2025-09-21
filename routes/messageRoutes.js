@@ -10,7 +10,7 @@ const upload = multer();
 
 const router = express.Router();
 
-router.route("/").post(protect, upload.none(), sendMessage);
+router.route("/").post(protect, upload.single("file"), sendMessage);
 router.route("/:chatId").get(protect, allMessages); // Fetch all messages for a single chat
 router.post("/upload", upload.single("file"), async (req, res) => {
   const newMsg = new Message({
