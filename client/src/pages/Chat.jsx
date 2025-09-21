@@ -1,4 +1,4 @@
-import { Box } from "@chakra-ui/react";
+import { Box, IconButton, useColorMode } from "@chakra-ui/react";
 import { useState } from "react";
 
 import { ChatState } from "../context/ChatProvider";
@@ -7,10 +7,12 @@ import { ChatBox, MyChats, SideDrawer } from "../components";
 const Chat = () => {
   const { user } = ChatState();
   const [fetchAgain, setFetchAgain] = useState(false);
+  const { colorMode, toggleColorMode } = useColorMode();
 
   return (
-    <div style={{ width: "100%" }}>
-      {user && <SideDrawer />}
+    <Box w="100%" minH="100vh" bg={colorMode === "dark" ? "gray.900" : "white"}>
+    
+      {user && <SideDrawer colorMode={colorMode} toggleColorMode={toggleColorMode}/>}
       <Box
         display="flex"
         justifyContent="space-between"
@@ -18,10 +20,10 @@ const Chat = () => {
         h="91.5vh"
         p="10px"
       >
-        {user && <MyChats fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />}
-        {user && <ChatBox fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />}
+        {user && <MyChats fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} colorMode={colorMode} />} 
+         {user && <ChatBox fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} colorMode={colorMode} />} 
       </Box>
-    </div>
+    </Box>
   );
 };
 

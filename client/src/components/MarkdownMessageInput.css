@@ -1,0 +1,92 @@
+.markdown-input-container {
+  padding: 12px;
+  background: #fff;
+  max-width: 100%;
+}
+
+.markdown-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.markdown-toggle button {
+  padding: 6px 16px;
+  border: none;
+  background: #f1f1f1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+  transition: background 0.2s;
+}
+
+.markdown-toggle button.active {
+  background: #3182ce;
+  color: #fff;
+}
+
+.markdown-textarea {
+  width: 100%;
+  min-height: 60px;
+  max-height: 300px;
+  resize: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.markdown-textarea.focused {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 2px #3182ce33;
+}
+
+.markdown-preview {
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 8px;
+  background: #f9f9f9;
+  min-height: 60px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 1rem;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  margin-left: 1.5em;
+}
+
+.markdown-preview code {
+  background: #edf2f7;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.markdown-preview pre {
+  background: #2d3748;
+  color: #f7fafc;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.markdown-preview {
+  color: #000; 
+}
+
+.dark .markdown-preview {
+  color: #f5f5f5; 
+}
