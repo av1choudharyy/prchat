@@ -4,7 +4,7 @@ const { Message, Chat } = require("../models");
 // @route           POST /api/Message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, replyTo } = req.body;
 
   if (!content || !chatId) {
     return res.status(400).json({
@@ -15,12 +15,20 @@ const sendMessage = async (req, res) => {
   }
 
   try {
-    // Create a new message
-    let message = await Message.create({
+    // Create message object
+    const messageData = {
       sender: req.user._id, // Logged in user id,
       content,
       chat: chatId,
-    });
+    };
+
+    // Add reply reference if provided
+    if (replyTo) {
+      messageData.replyTo = replyTo;
+    }
+
+    // Create a new message
+    let message = await Message.create(messageData);
 
     message = await (
       await message.populate("sender", "name pic")
@@ -30,6 +38,18 @@ const sendMessage = async (req, res) => {
       model: "Chat",
       populate: { path: "users", select: "name email pic", model: "User" },
     });
+
+    // Populate reply information if it exists
+    if (message.replyTo) {
+      message = await message.populate({
+        path: "replyTo",
+        select: "content sender createdAt",
+        populate: {
+          path: "sender",
+          select: "name"
+        }
+      });
+    }
 
     // Update latest message
     await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
@@ -51,7 +71,15 @@ const allMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
       .populate("sender", "name pic email")
-      .populate("chat");
+      .populate("chat")
+      .populate({
+        path: "replyTo",
+        select: "content sender createdAt",
+        populate: {
+          path: "sender",
+          select: "name"
+        }
+      });
 
     res.status(200).json(messages);
   } catch (error) {

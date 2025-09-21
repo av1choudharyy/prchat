@@ -40,6 +40,59 @@
   scrollbar-width: none; /* Firefox */
 }
 
+/* Reply button hover effect */
+.message-box {
+  position: relative;
+  overflow: visible !important;
+}
+
+.message-box .reply-button {
+  opacity: 0 !important;
+  transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+  background: rgba(255, 165, 0, 0.3) !important;
+  color: #2D5A27 !important;
+  z-index: 10;
+  min-width: 24px !important;
+  height: 24px !important;
+  padding: 2px !important;
+}
+
+.message-box:hover .reply-button {
+  opacity: 0.7 !important;
+}
+
+.reply-button:hover {
+  opacity: 1 !important;
+  transform: scale(1.05) !important;
+  background: rgba(255, 165, 0, 0.5) !important;
+  color: #1A4A1A !important;
+  cursor: pointer;
+}
+
+/* Search highlights */
+.search-highlight {
+  background-color: rgba(255, 235, 59, 0.3) !important;
+  animation: pulse-highlight 1s ease-in-out;
+}
+
+.highlight-message {
+  background-color: rgba(255, 235, 59, 0.5) !important;
+  animation: pulse-highlight 1.5s ease-in-out;
+  transition: background-color 0.3s ease;
+}
+
+@keyframes pulse-highlight {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .notification-badge-container {
   position: relative;
   margin-right: 10px;
