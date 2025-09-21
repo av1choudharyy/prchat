@@ -1,9 +1,16 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback,useRef } from "react";
 import { ArrowBackIcon, ArrowForwardIcon } from "@chakra-ui/icons";
-
+import {ButtonGroup, useColorModeValue } from "@chakra-ui/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkEmoji from "remark-emoji";
 import { BsEmojiSmile } from "react-icons/bs"; // Emoji icon
+import { Icon } from "@chakra-ui/react";
+import { FiFileText } from "react-icons/fi";
+import { exportChatAsMarkdown } from "../exportMarkdown";
+import { FaPaperPlane } from "react-icons/fa";
 
-
+import rehypeRaw from "rehype-raw";
 import axios from "axios";
 import {
   Box,
@@ -18,7 +25,11 @@ import {
   PopoverTrigger,
   PopoverContent,
   PopoverBody,
-  SimpleGrid
+  SimpleGrid,
+  Textarea,
+  Code,
+  Heading,
+  Link
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -45,7 +56,26 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   { label: "😎", value: "😎" },
   { label: "🤔", value: "🤔" },
 ];
+const markdownSnippets = [
+  { label: "Bold", value: "**bold text**" },
+  { label: "Italic", value: "*italic text*" },
+  { label: "Code", value: "`inline code`" },
+  { label: "Code Block", value: "```\ncode block\n```" },
+  { label: "H1", value: "# Heading 1" },
+  { label: "H2", value: "## Heading 2" },
+  { label: "H3", value: "### Heading 3" },
+  { label: "List", value: "- List item" },
+  { label: "Ordered", value: "1. Ordered item" },
+  { label: "Link", value: "[Link text](https://example.com)" },
+  { label: "Image", value: "![Alt text](https://example.com/image.jpg)" },
+  { label: "Audio", value: "<audio controls><source src='your-audio.mp3' /></audio>" },
+  { label: "Video", value: "<video controls><source src='your-video.mp4' /></video>" },
+  { label: "File", value: "[File.pdf](https://example.com/file.pdf)" },
+  { label: "Emoji", value: ":smile: :tada: :rocket: :heart: :+1: :joy:" },
+];
+
   const [messages, setMessages] = useState([]);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -54,6 +84,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [fontStyle, setFontStyle] = useState("normal"); // "bold", "italic", "underline"
+  const textareaRef = useRef(null);
+const [inputHeight, setInputHeight] = useState("40px");
+
+  const bgColor = useColorModeValue("#E0E0E0", "gray.700");
+  const focusBg = useColorModeValue("#F5F5F5", "gray.600");
+
+  const timerRef = useRef(null);
+  const lastTypingRef = useRef(0);
+  const TYPING_TIMER_LENGTH = 3000; // ms
+
   const emojiOptions = [
   "😀", "😂", "😍", "👍", "🔥",
   "😢", "🎉", "🤔", "🙌", "😎",
@@ -67,10 +107,21 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   "🎶", "🎂", "🎁", "📣", "🧠"
 ];
 
-
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
   const toast = useToast();
+
+ const stopTyping = useCallback(() => {
+  if (typing) {
+    if (selectedChat?._id) {
+      socket.emit("stop typing", selectedChat._id); // ✅ corrected event
+    }
+    setTyping(false);
+  }
+  if (timerRef.current) {
+    clearTimeout(timerRef.current);
+  }
+}, [typing, socket, selectedChat]); // ✅ fixed dependency
 
   const fetchMessages = useCallback(async () => {
     if (!selectedChat) return;
@@ -100,6 +151,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       });
     }
   }, [selectedChat, user.token, toast]);
+
+  useEffect(() => {
+  if (!isPreviewMode && textareaRef.current) {
+    textareaRef.current.style.height = inputHeight;
+  }
+}, [isPreviewMode, inputHeight]);
 
   useEffect(() => {
     socket = io(ENDPOINT);
@@ -156,6 +213,10 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       socket.emit("new message", data);
       setMessages((prev) => [...prev, data]);
       setNewMessage("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
+    }
+
     } catch (error) {
       toast({
         title: "Error Occured!",
@@ -169,11 +230,31 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  const sendMessage = (e) => {
-    if (e.key === "Enter") {
-      handleSendMessage();
-    }
-  };
+ const sendMessage = (e) => {
+  if (e.key === "Enter" && e.ctrlKey) {
+    e.preventDefault();
+    handleSendMessage();
+  }
+};
+const insertMarkdown = (snippet) => {
+  const textarea = textareaRef.current;
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const before = newMessage.slice(0, start);
+  const after = newMessage.slice(end);
+  const updated = `${before}${snippet}${after}`;
+
+  setNewMessage(updated);
+
+  // Move cursor after inserted snippet
+  setTimeout(() => {
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
+  }, 0);
+};
+
 const onReact = async (messageId, emoji) => {
   try {
     const { data: updatedMessage } = await axios.put(
@@ -193,8 +274,10 @@ const onReact = async (messageId, emoji) => {
 };
 
 
-  const typingHandler = (e) => {
-    setNewMessage(e.target.value);
+   const typingHandler = (e) => {
+    const value = e.target.value;
+    setNewMessage(value);
+
     if (!socketConnected) return;
 
     if (!typing) {
@@ -202,18 +285,34 @@ const onReact = async (messageId, emoji) => {
       socket.emit("typing", selectedChat._id);
     }
 
-    const lastTypingTime = new Date().getTime();
-    const timerLength = 3000;
+    lastTypingRef.current = Date.now();
 
-    setTimeout(() => {
-      const timeNow = new Date().getTime();
-      const timeDiff = timeNow - lastTypingTime;
-      if (timeDiff >= timerLength && typing) {
-        socket.emit("stop typing", selectedChat._id);
-        setTyping(false);
+    // reset any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // schedule stopTyping after inactivity
+    timerRef.current = setTimeout(() => {
+      if (Date.now() - lastTypingRef.current >= TYPING_TIMER_LENGTH) {
+        stopTyping();
       }
-    }, timerLength);
+    }, TYPING_TIMER_LENGTH);
   };
+useEffect(() => {
+    if (typing && newMessage.trim() === "") {
+      stopTyping();
+    }
+  }, [newMessage, typing, stopTyping]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleSearch = () => {
     if (!searchTerm.trim()) return;
@@ -286,6 +385,13 @@ const onReact = async (messageId, emoji) => {
                 </>
               )}
             </Box>
+            <Button
+  size="sm"
+  colorScheme="blue"
+  onClick={() => exportChatAsMarkdown(messages)}
+>
+  Export Chat
+</Button>
 <Box display="flex" alignItems="center" justifyContent="flex-end" mb={2} gap={2}>
   <Text fontWeight="semibold">Font Style:</Text>
   <select
@@ -387,7 +493,8 @@ const onReact = async (messageId, emoji) => {
               >
                 <ScrollableChat
                   messages={messages}
-                  isTyping={isTyping}
+                  typing={typing}
+                  isPreviewMode={isPreviewMode}
                   highlightedMessageId={highlightedMessageId}
                   onReact={onReact}
                   fontStyle={fontStyle}
@@ -414,6 +521,24 @@ const onReact = async (messageId, emoji) => {
 
   ))}
 </Box>
+  
+    <Box display="flex" gap="8px" mb="2" flexWrap="wrap">
+  {markdownSnippets.map((snippet) => (
+    <Button
+      key={snippet.label}
+      size="sm"
+      colorScheme="blue"
+      variant="solid"
+      bg="blue.200"
+      color="black"
+      _hover={{ bg: "blue.300" }}
+      onClick={() => insertMarkdown(snippet.value)}
+    >
+      {snippet.label}
+    </Button>
+  ))}
+</Box>
+
             <FormControl mt="3" isRequired>
               <Box display="flex" gap="8px" alignItems="center">
                 
@@ -446,22 +571,187 @@ const onReact = async (messageId, emoji) => {
                     </PopoverBody>
                   </PopoverContent>
                 </Popover>
-            
                 {/* Message Input */}
-                <Input
+                {/*<Input
                   variant="filled"
                   bg="#E0E0E0"
                   placeholder="Enter a message..."
                   value={newMessage}
                   onChange={typingHandler}
                   onKeyDown={sendMessage}
-                />
-            
+                />*/}
+                <ButtonGroup size="sm" mb={2}>
+  <Button
+    onClick={() => setIsPreviewMode(false)}
+    variant={isPreviewMode ? "outline" : "solid"}
+  >
+    Write
+  </Button>
+  <Button
+    onClick={() => setIsPreviewMode(true)}
+    variant={isPreviewMode ? "solid" : "outline"}
+  >
+    Preview
+  </Button>
+</ButtonGroup>
+              {isPreviewMode ? (
+  <Box
+  p={3}
+  bg="#F5F5F5"
+  borderRadius="md"
+  maxHeight="300px"
+  overflowY="auto"
+  width={textareaRef.current?.offsetWidth || "100%"}
+  whiteSpace="normal" // ✅ Required for block elements like <img>
+>
+  <ReactMarkdown
+  remarkPlugins={[remarkGfm, remarkEmoji]}
+  rehypePlugins={[rehypeRaw]} 
+  components={{
+    ul: ({ children }) => <Box as="ul" pl={4} mb={2}>{children}</Box>,
+    ol: ({ children }) => <Box as="ol" pl={4} mb={2}>{children}</Box>,
+    li: ({ children }) => <Box as="li" mb={1}>{children}</Box>,
+
+    // ✅ File link detection
+    a: ({ href, children }) => {
+  const fileMatch = href.match(/\/([^\/?#]+)$/); // Extract filename from URL
+  const filename = fileMatch ? fileMatch[1] : children;
+  const isFile = /\.(pdf|docx?|xlsx?|zip|rar|pptx?)$/i.test(filename);
+
+  if (!isFile) {
+    return (
+      <Link href={href} color="blue.500" isExternal>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <Box
+      as="a"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      display="flex"
+      alignItems="center"
+      gap={3}
+      bg="gray.50"
+      border="1px solid"
+      borderColor="gray.200"
+      borderRadius="md"
+      p={3}
+      mt={2}
+      _hover={{ bg: "gray.100" }}
+    >
+      <Box boxSize="6">
+        <Icon as={FiFileText} color="purple.500" boxSize="6" />
+      </Box>
+      <Text fontWeight="medium" fontSize="sm" noOfLines={1}>
+        {filename}
+      </Text>
+    </Box>
+  );
+},
+
+    strong: ({ children }) => <Text as="strong">{children}</Text>,
+    em: ({ children }) => <Text as="em">{children}</Text>,
+
+    code: ({ inline, children }) =>
+      inline ? (
+        <Code fontSize="sm" colorScheme="gray">
+          {children}
+        </Code>
+      ) : (
+        <Box as="pre" bg="gray.100" p={3} borderRadius="md" overflowX="auto">
+          <Code whiteSpace="pre">{children}</Code>
+        </Box>
+      ),
+
+    h1: ({ children }) => <Heading as="h1" size="lg" mb={2}>{children}</Heading>,
+    h2: ({ children }) => <Heading as="h2" size="md" mb={2}>{children}</Heading>,
+    h3: ({ children }) => <Heading as="h3" size="sm" mb={2}>{children}</Heading>,
+
+    // ✅ Image renderer
+    img: ({ src, alt }) => (
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        style={{
+          maxWidth: "100%",
+          maxHeight: "300px",
+          objectFit: "contain",
+          borderRadius: "8px",
+          margin: "8px 0",
+          display: "block",
+        }}
+      />
+    ),
+
+    // ✅ Video renderer
+    video: ({ src }) => (
+      <Box as="video" controls width="100%" maxHeight="300px" borderRadius="md" mt={2}>
+        <source src={src} />
+        Your browser does not support the video tag.
+      </Box>
+    ),
+
+    // ✅ Audio renderer
+    audio: ({ src }) => (
+  <Box width="100%" mt={2}>
+    <audio
+      controls
+      style={{
+        width: "100%",
+        display: "block", // ensures it respects container width
+      }}
+    >
+      <source src={src} />
+      Your browser does not support the audio tag.
+    </audio>
+  </Box>
+)
+,
+  }}
+>
+  {newMessage || "*Nothing to preview...*"}
+</ReactMarkdown>
+</Box>
+) : (
+  <Textarea
+    ref={textareaRef}
+    value={newMessage}
+    onChange={typingHandler}
+    onKeyDown={sendMessage}
+    placeholder="Enter a message..."
+    variant="filled"
+    bg="#E0E0E0"
+    resize="none"
+    overflow="auto"
+    minHeight="40px"
+    maxHeight="300px"
+    onInput={(e) => {
+     e.target.style.height = "auto";
+  const newHeight = `${Math.min(e.target.scrollHeight, 300)}px`;
+  e.target.style.height = newHeight;
+  setInputHeight(newHeight);
+
+    }}
+    _focus={{
+      borderColor: "blue.500",
+      boxShadow: "0 0 0 2px rgba(66, 153, 225, 0.6)",
+      bg: "#F5F5F5",
+    }}
+  />
+)}
+
+                
                 {/* Send Button */}
                 <IconButton
                   colorScheme="blue"
-                  icon={<ArrowForwardIcon />}
+                  icon={<FaPaperPlane />}
                   onClick={handleSendMessage}
+                  isDisabled={!newMessage.trim()}
                 />
               </Box>
             </FormControl>
