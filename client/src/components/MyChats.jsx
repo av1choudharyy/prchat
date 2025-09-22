@@ -1,123 +1,97 @@
-import { useEffect, useState } from "react";
+// client/src/components/MyChats.jsx
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Stack,
+  Avatar,
   Text,
-  useDisclosure,
+  VStack,
+  HStack,
+  Divider,
   useToast,
+  Spinner,
 } from "@chakra-ui/react";
-import { AddIcon } from "@chakra-ui/icons";
 
 import { ChatState } from "../context/ChatProvider";
-import ChatLoading from "./ChatLoading";
 import { getSender } from "../config/ChatLogics";
-import GroupChatModal from "./miscellaneous/GroupChatModal";
 
-const MyChats = ({ fetchAgain }) => {
-  const [loggedUser, setLoggedUser] = useState();
-
-  const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
+/**
+ * Clean MyChats list:
+ * - fixed width column
+ * - header with "My Chats" and New Group button
+ * - scrollable list of chat items
+ *
+ * Replace your existing MyChats with this if you want a simple, clean layout.
+ */
+const MyChats = ({ fetchAgain, setFetchAgain }) => {
+  const { user, selectedChat, setSelectedChat, chats, setChats } = ChatState();
+  const [loading, setLoading] = useState(false);
   const toast = useToast();
-  const { onClose } = useDisclosure();
-
-  const fetchChats = async () => {
-    try {
-      const response = await fetch(`/api/chat`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
-      });
-      const data = await response.json();
-
-      setChats(data);
-      onClose(); // Close the side drawer
-    } catch (error) {
-      return toast({
-        title: "Error Occured!",
-        description: "Failed to Load the Search Results",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "bottom-left",
-        variant: "solid",
-      });
-    }
-  };
 
   useEffect(() => {
-    setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
+    // If chats are empty, fetch them
+    const fetchChats = async () => {
+      if (!user) return;
+      try {
+        setLoading(true);
+        const res = await fetch("/api/chat", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        const data = await res.json();
+        setChats(data);
+        setLoading(false);
+      } catch (err) {
+        setLoading(false);
+        toast({
+          title: "Failed to load chats",
+          status: "error",
+          description: err.message,
+        });
+      }
+    };
     fetchChats();
     // eslint-disable-next-line
-  }, [fetchAgain]);
+  }, [fetchAgain, user]);
 
   return (
-    <Box
-      display={{ base: selectedChat ? "none" : "flex", md: "flex" }}
-      flexDir="column"
-      alignItems="center"
-      p={3}
-      bg="white"
-      w={{ base: "100%", md: "31%" }}
-      borderRadius="lg"
-      borderWidth="1px"
-    >
-      <Box
-        pb={3}
-        px={3}
-        fontSize={{ base: "28px", md: "30px" }}
-        fontFamily="Work sans"
-        display="flex"
-        w="100%"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        My Chats
-        <GroupChatModal>
-          <Button
-            display="flex"
-            fontSize={{ base: "17px", md: "10px", lg: "17px" }}
-            rightIcon={<AddIcon />}
-          >
-            New Group Chat
-          </Button>
-        </GroupChatModal>
+    <Box className="my-chats">
+      <Box className="header">
+        <Text fontSize="2xl" fontWeight="semibold">My Chats</Text>
+        <Button size="sm" colorScheme="blue" onClick={() => toast({ title: "New Group Chat", description: "Not implemented", status: "info" })}>
+          New Group Chat +
+        </Button>
       </Box>
 
-      <Box
-        display="flex"
-        flexDir="column"
-        p={3}
-        bg="#F8F8F8"
-        w="100%"
-        h="100%"
-        borderRadius="lg"
-        overflowY="hidden"
-      >
-        {chats ? (
-          <Stack overflowY="scroll">
-            {chats.map((chat) => (
-              <Box
-                onClick={() => setSelectedChat(chat)}
-                cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
-                px={3}
-                py={2}
-                borderRadius="lg"
-                key={chat._id}
-              >
-                <Text>
-                  {!chat.isGroupChat
-                    ? getSender(loggedUser, chat.users)
-                    : chat.chatName}
-                </Text>
-              </Box>
-            ))}
-          </Stack>
+      <Box className="chats-list">
+        {loading ? (
+          <VStack spacing={3} align="stretch" py={6}>
+            <Spinner alignSelf="center" />
+          </VStack>
+        ) : !chats || chats.length === 0 ? (
+          <Box className="center" p={6}>
+            <Text className="small-muted">No chats yet</Text>
+          </Box>
         ) : (
-          <ChatLoading />
+          chats.map((chat) => {
+            const isSelected = selectedChat && selectedChat._id === chat._id;
+            const chatName = chat.isGroupChat ? chat.chatName : getSender(user, chat.users);
+            const lastMsg = chat.latestMessage ? chat.latestMessage.content : "";
+
+            return (
+              <Box
+                key={chat._id}
+                className={`chat-item ${isSelected ? "selected" : ""}`}
+                onClick={() => setSelectedChat(chat)}
+              >
+                <Avatar name={chatName} src={chat.pic} />
+                <Box className="meta">
+                  <Text className="name">{chatName}</Text>
+                  <Text className="sub" noOfLines={1}>{lastMsg}</Text>
+                </Box>
+              </Box>
+            );
+          })
         )}
       </Box>
     </Box>

@@ -1,77 +1,101 @@
-import { ViewIcon } from "@chakra-ui/icons";
+// client/src/components/miscellaneous/ProfileModal.jsx
+import React from "react";
 import {
+  Avatar,
   Button,
-  IconButton,
-  Image,
   Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   ModalOverlay,
-  Text,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
   useDisclosure,
+  VStack,
+  Text,
+  HStack,
+  Box,
+  IconButton,
+  Tooltip,
+  useColorModeValue,
 } from "@chakra-ui/react";
+import { InfoIcon } from "@chakra-ui/icons";
 
-const ProfileModal = ({ user, children }) => {
+/**
+ * ProfileModal
+ *
+ * Props:
+ *  - user: object | null
+ *
+ * Defensive: if `user` is null/undefined, renders nothing.
+ */
+const ProfileModal = ({ user }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Hooks MUST be unconditional (top-level always)
+  const bg = useColorModeValue("white", "gray.800");
+  const textColor = useColorModeValue("black", "white");
+  const subTextColor = useColorModeValue("gray.600", "gray.300");
+
+  // Defensive check AFTER hooks
+  if (!user) {
+    return null;
+  }
 
   return (
     <>
-      {children ? (
-        <span onClick={onOpen}>{children}</span>
-      ) : (
+      {/* Trigger: avatar + name */}
+      <HStack spacing={2} cursor="pointer" onClick={onOpen} alignItems="center">
+        <Tooltip label="View profile" hasArrow>
+          <Avatar name={user.name} size="sm" src={user.pic} />
+        </Tooltip>
+        <Text fontSize="sm" fontWeight="medium">
+          {user.name}
+        </Text>
         <IconButton
-          display={{ base: "flex" }}
-          icon={<ViewIcon />}
+          aria-label="Profile info"
+          size="sm"
+          icon={<InfoIcon />}
+          variant="ghost"
           onClick={onOpen}
         />
-      )}
+      </HStack>
 
-      {/* Profile Modal */}
-      <Modal size="lg" isOpen={isOpen} onClose={onClose} isCentered>
+      {/* Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
         <ModalOverlay />
-
-        <ModalContent h="410px">
-          <ModalHeader
-            display="flex"
-            justifyContent="center"
-            fontSize="40px"
-            fontFamily="Work sans"
-          >
-            {user.name}
-          </ModalHeader>
-
+        <ModalContent bg={bg} color={textColor}>
+          <ModalHeader>Profile</ModalHeader>
           <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="start">
+              <HStack spacing={4} align="center" w="100%">
+                <Avatar name={user.name} size="2xl" src={user.pic} />
+                <Box>
+                  <Text fontWeight="semibold" fontSize="lg">
+                    {user.name}
+                  </Text>
+                  <Text fontSize="sm" color={subTextColor}>
+                    {user.email}
+                  </Text>
+                </Box>
+              </HStack>
 
-          <ModalBody
-            display="flex"
-            flexDir="column"
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            {/* Profile Picture */}
-            <Image
-              borderRadius="full"
-              boxSize="150px"
-              src={user.pic}
-              alt={user.name}
-            />
-
-            {/* Email Address */}
-            <Text
-              fontSize={{ base: "28px", md: "30px" }}
-              fontFamily="Work sans"
-            >
-              Email: {user.email}
-            </Text>
+              {user.about && (
+                <Box>
+                  <Text fontSize="sm" fontWeight="semibold">
+                    About
+                  </Text>
+                  <Text fontSize="sm" color={subTextColor}>
+                    {user.about}
+                  </Text>
+                </Box>
+              )}
+            </VStack>
           </ModalBody>
 
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={onClose}>
-              Close
-            </Button>
+            <Button onClick={onClose}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

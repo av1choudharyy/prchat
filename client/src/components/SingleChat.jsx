@@ -1,5 +1,5 @@
 // client/src/components/SingleChat.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowBackIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
 import {
   Box,
@@ -19,7 +19,8 @@ import {
   MenuItem,
   MenuList,
 } from "@chakra-ui/react";
-import { FiSend, FiTrash2, FiCopy, FiShare2, FiCornerDownLeft, FiBookmark } from "react-icons/fi";
+import { FiSend, FiTrash2, FiCopy, FiShare2, FiCornerDownLeft } from "react-icons/fi";
+import { FaThumbtack } from "react-icons/fa";
 
 import io from "socket.io-client";
 import { ChatState } from "../context/ChatProvider";
@@ -44,25 +45,23 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [replyTo, setReplyTo] = useState(null);
   const [selectedMessages, setSelectedMessages] = useState([]);
 
-  const { user, selectedChat, setSelectedChat, notification, setNotification } =
-    ChatState();
+  const { user, selectedChat, setSelectedChat, notification, setNotification } = ChatState();
   const toast = useToast();
 
-  // color mode tokens (top-level only)
+  // color tokens (top-level hooks only)
   const { colorMode, toggleColorMode } = useColorMode();
-  const inputBg = useColorModeValue("#fff", "#1a202c");
-  const chatAreaBg = useColorModeValue("#F7F7F8", "#071124");
-  const headerBg = useColorModeValue("#ffffff", "#071124");
+  const inputBg = useColorModeValue("white", "gray.800");
+  const chatAreaBg = useColorModeValue("gray.50", "gray.900");
+  const headerBg = useColorModeValue("white", "gray.900");
   const headerText = useColorModeValue("black", "white");
   const replyPreviewBg = useColorModeValue("gray.100", "gray.700");
   const replyPreviewText = useColorModeValue("black", "white");
-  const containerBg = useColorModeValue("#f2f2f2", "#071124");
-  // actionbar colors (medium/dark that work for both modes)
+  const containerBg = useColorModeValue("transparent", "transparent");
   const actionbarBg = useColorModeValue("gray.100", "gray.800");
   const actionbarBorder = useColorModeValue("gray.200", "gray.700");
   const actionbarText = useColorModeValue("gray.800", "gray.100");
 
-  // socket + fetching
+  // socket + events
   useEffect(() => {
     if (!user) return;
     socket = io(ENDPOINT);
@@ -118,59 +117,55 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   }, [user]);
 
-  const fetchMessages = async () => {
-    if (!selectedChat) return;
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/message/${selectedChat._id}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-      const data = await res.json();
-
-      // materialize possible replyTo ids and default flags
-      const enriched = data.map((m) => {
-        if (m.replyTo && typeof m.replyTo === "string") {
-          const original = data.find((x) => x._id === m.replyTo);
-          if (original) m.replyTo = original;
-        }
-        m.seenBy = m.seenBy ?? [];
-        m.delivered = m.delivered ?? false;
-        return m;
-      });
-
-      setMessages(enriched);
-      setLoading(false);
-      socket?.emit("join chat", selectedChat._id);
-      markMessagesSeen(enriched);
-    } catch (err) {
-      setLoading(false);
-      toast({
-        title: "Error Occured!",
-        description: "Failed to load messages",
-        status: "error",
-        duration: 4000,
-        isClosable: true,
-      });
-    }
-  };
-
   useEffect(() => {
+    const fetchMessages = async () => {
+      if (!selectedChat) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/message/${selectedChat._id}`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        const data = await res.json();
+
+        const enriched = data.map((m) => {
+          if (m.replyTo && typeof m.replyTo === "string") {
+            const original = data.find((x) => x._id === m.replyTo);
+            if (original) m.replyTo = original;
+          }
+          m.seenBy = m.seenBy ?? [];
+          m.delivered = m.delivered ?? false;
+          return m;
+        });
+
+        setMessages(enriched);
+        setLoading(false);
+        socket?.emit("join chat", selectedChat._id);
+
+        // mark seen
+        enriched.forEach((m) => {
+          if (m.sender && m.sender._id !== user._id) {
+            try {
+              socket.emit("message_seen", { messageId: m._id, chatId: selectedChat._id, userId: user._id });
+            } catch {}
+          }
+        });
+      } catch (err) {
+        setLoading(false);
+        toast({
+          title: "Error Occured!",
+          description: "Failed to load messages",
+          status: "error",
+          duration: 4000,
+          isClosable: true,
+        });
+      }
+    };
+
     fetchMessages();
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
-
-  const markMessagesSeen = (msgs) => {
-    if (!msgs || !Array.isArray(msgs)) return;
-    msgs.forEach((m) => {
-      if (m.sender && m.sender._id !== user._id) {
-        try {
-          socket.emit("message_seen", { messageId: m._id, chatId: selectedChat._id, userId: user._id });
-        } catch {}
-      }
-    });
-  };
 
   // selection toggles
   const handleToggleSelect = (msg) => {
@@ -180,13 +175,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
   const handleClearSelection = () => setSelectedMessages([]);
 
-  // delete
+  // delete handlers
   const handleDeleteForMe = (msgs) => {
     setMessages((prev) => prev.filter((m) => !msgs.some((s) => s._id === m._id)));
     handleClearSelection();
     toast({ title: "Deleted for me", status: "info", duration: 1600 });
   };
-
   const handleDeleteForEveryone = (msgs) => {
     setMessages((prev) => prev.map((m) => (msgs.some((s) => s._id === m._id) ? { ...m, deletedForEveryone: true, content: "" } : m)));
     msgs.forEach((s) => {
@@ -207,7 +201,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
   const handleCancelReply = () => setReplyTo(null);
 
-  // copy & forward
+  // copy/forward/pin
   const handleCopy = async (msgs) => {
     const text = msgs.map((m) => m.content).join("\n");
     try {
@@ -222,8 +216,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     toast({ title: "Forward clicked", description: "Forward modal not implemented", status: "info" });
     handleClearSelection();
   };
-
-  // pin toggle
   const handlePinToggle = (msgs) => {
     let newPinned = [...pinnedMessages];
     msgs.forEach((msg) => {
@@ -298,7 +290,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   return (
     <Box height="100%" display="flex" flexDirection="column" bg={containerBg}>
-      {/* Header */}
+      {/* Header (fixed) */}
       <Box
         bg={headerBg}
         color={headerText}
@@ -332,7 +324,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         <HStack spacing={2}>
           {selectedChat?.isGroupChat ? (
-            <UpdateGroupChatModal fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} fetchMessages={fetchMessages} />
+            <UpdateGroupChatModal fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} fetchMessages={() => {}} />
           ) : (
             <ProfileModal user={getSenderFull(user, selectedChat?.users)} />
           )}
@@ -354,15 +346,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           flexShrink={0}
           color={actionbarText}
         >
-          <HStack spacing={2}>
+          {/* left: selected count */}
+          <Box>
             <Text fontWeight="semibold">{selectedMessages.length} selected</Text>
+          </Box>
+
+          {/* right: all actions (reply, forward, copy, pin, delete) */}
+          <HStack spacing={2}>
             <IconButton aria-label="Reply" icon={<FiCornerDownLeft />} size="sm" onClick={() => handleReply(selectedMessages[selectedMessages.length - 1])} />
             <IconButton aria-label="Forward" icon={<FiShare2 />} size="sm" onClick={() => handleForward(selectedMessages)} />
             <IconButton aria-label="Copy" icon={<FiCopy />} size="sm" onClick={() => handleCopy(selectedMessages)} />
-            <IconButton aria-label="Pin" icon={<FiBookmark />} size="sm" onClick={() => handlePinToggle(selectedMessages)} />
-          </HStack>
-
-          <HStack spacing={2}>
+            <IconButton aria-label="Pin" icon={<FaThumbtack />} size="sm" onClick={() => handlePinToggle(selectedMessages)} />
             <Menu>
               <MenuButton as={IconButton} aria-label="Delete" icon={<FiTrash2 />} size="sm" />
               <MenuList>
@@ -370,12 +364,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 <MenuItem onClick={() => handleDeleteForEveryone(selectedMessages)}>Delete for everyone</MenuItem>
               </MenuList>
             </Menu>
-            {/* selection clears automatically after action; user requested no Cancel button */}
           </HStack>
         </Box>
       )}
 
-      {/* Chat area */}
+      {/* Chat area (header + pinned strip + messages scroll + input) */}
       <Box flex="1" display="flex" flexDirection="column" p={4} overflow="hidden" bg={chatAreaBg}>
         {loading ? (
           <Spinner size="xl" w="20" h="20" alignSelf="center" margin="auto" />
@@ -392,7 +385,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           </Box>
         )}
 
-        {/* Reply preview */}
+        {/* Reply preview (fixed above input) */}
         {replyTo && (
           <Box bg={replyPreviewBg} p={2} borderRadius="md" my={2} color={replyPreviewText}>
             <HStack justify="space-between" alignItems="center">
@@ -409,9 +402,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           </Box>
         )}
 
-        {/* Input */}
+        {/* Input area (fixed) */}
         <FormControl mt="2" onKeyDown={(e) => e.key === "Enter" && sendMessage()}>
-          <HStack>
+          <HStack spacing={2}>
             <Input id="prchat-input" variant="filled" bg={inputBg} placeholder="Enter a message.." value={newMessage} onChange={typingHandler} />
             <Button colorScheme="green" onClick={sendMessage} aria-label="Send">
               <FiSend />
