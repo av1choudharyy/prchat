@@ -1,17 +1,16 @@
 const express = require("express");
 const multer = require("multer");
-const {
-  sendMessage,
-  allMessages,
-} = require("../controllers/messageControllers");
-
-const { protect } = require("../middleware");
-const upload = multer();
+const path = require("path");
+const Message = require("../models/Message");
 
 const router = express.Router();
 
-router.route("/").post(protect, upload.single("file"), sendMessage);
-router.route("/:chatId").get(protect, allMessages); // Fetch all messages for a single chat
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage });
+
 router.post("/upload", upload.single("file"), async (req, res) => {
   const newMsg = new Message({
     sender: req.body.sender,

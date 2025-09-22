@@ -4,23 +4,54 @@ const { Message, Chat } = require("../models");
 // @route           POST /api/Message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId } = req.body;
+  const { content, chatId, fileType, fileName } = req.body;
+  const file = req.file; // File from multer
 
-  if (!content || !chatId) {
+  if (!chatId) {
     return res.status(400).json({
       success: false,
       statusCode: 400,
-      message: "Invalid data passed into request",
+      message: "Chat ID is required",
+    });
+  }
+
+  // Either content or file should be present
+  if (!content && !file) {
+    return res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: "Either content or file is required",
     });
   }
 
   try {
-    // Create a new message
-    let message = await Message.create({
-      sender: req.user._id, // Logged in user id,
-      content,
+    let messageData = {
+      sender: req.user._id,
       chat: chatId,
-    });
+    };
+
+    // Handle text content
+    if (content) {
+      messageData.content = content;
+    }
+
+    // Handle file upload
+    if (file) {
+      messageData.file = {
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        data: file.buffer, // Store file data in buffer
+      };
+      
+      // If no content, use file name as content
+      if (!content) {
+        messageData.content = `📎 ${file.originalname}`;
+      }
+    }
+
+    // Create a new message
+    let message = await Message.create(messageData);
 
     message = await (
       await message.populate("sender", "name pic")
@@ -32,14 +63,16 @@ const sendMessage = async (req, res) => {
     });
 
     // Update latest message
-    await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+    await Chat.findByIdAndUpdate(chatId, { latestMessage: message });
 
-    return res.status(201).json(message); // Send message we just created now
+    return res.status(201).json(message);
   } catch (error) {
-    return res.status(400).json({
+    console.error("Error creating message:", error);
+    return res.status(500).json({
       success: false,
-      statusCode: 400,
+      statusCode: 500,
       message: "Failed to create New Message",
+      error: error.message,
     });
   }
 };
