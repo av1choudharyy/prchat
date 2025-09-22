@@ -102,7 +102,7 @@ const ScrollableChat = ({
       return <MdDoneAll style={{ color: "#4A5568", marginLeft: 6 }} />;
     }
     // sent => gray single check
-    return <MdDone style={{ color: "#4A5568", marginLeft: 6 }} />;
+    return <MdDone style={{ color: "#111215ff", marginLeft: 6 }} />;
   };
 
   const renderMarkdown = (text) => {

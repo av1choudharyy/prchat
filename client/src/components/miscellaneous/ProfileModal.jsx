@@ -46,12 +46,7 @@ const ProfileModal = ({ user }) => {
     <>
       {/* Trigger: avatar + name */}
       <HStack spacing={2} cursor="pointer" onClick={onOpen} alignItems="center">
-        <Tooltip label="View profile" hasArrow>
-          <Avatar name={user.name} size="sm" src={user.pic} />
-        </Tooltip>
-        <Text fontSize="sm" fontWeight="medium">
-          {user.name}
-        </Text>
+       
         <IconButton
           aria-label="Profile info"
           size="sm"

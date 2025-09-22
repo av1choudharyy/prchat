@@ -15,9 +15,12 @@ import {
   useColorMode,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { FiCopy, FiCornerDownLeft, FiCornerDownRight, FiSend,FiTrash } from "react-icons/fi";
+import { FiCopy, FiCornerDownLeft, FiCornerDownRight, FiSend, FiPaperclip } from "react-icons/fi";
 import io from "socket.io-client";
-import { FaThumbtack } from "react-icons/fa";
+import { FaThumbtack, FaTrash } from "react-icons/fa";
+import { FaSmile } from "react-icons/fa";
+import EmojiPicker from "emoji-picker-react";
+
 import { ChatState } from "../context/ChatProvider";
 import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
@@ -40,6 +43,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   const [replyTo, setReplyTo] = useState(null);
   const [selectedMessages, setSelectedMessages] = useState([]);
+
+  // emoji picker
+  const [showEmoji, setShowEmoji] = useState(false);
 
   // preview / editor state
   const [mode, setMode] = useState("write"); // "write" | "preview"
@@ -66,6 +72,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const actionBarText = useColorModeValue("gray.800", "gray.100");
   const dividerBorder = useColorModeValue("gray.200", "gray.700");
   const previewBg = useColorModeValue("white", "gray.800");
+
+  // emoji-picker style tokens
+  const pickerBg = useColorModeValue("#ffffff", "#0b1220");
+  const pickerShadow = useColorModeValue("rgba(15,23,36,0.06)", "rgba(255,255,255,0.03)");
+  const pickerText = useColorModeValue("#111827", "#E6EEF8");
 
   // ----------------------------
   // Socket setup & listeners
@@ -286,6 +297,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       setMessages((prev) => [...prev, data]);
       setNewMessage("");
       setReplyTo(null);
+
+      // close emoji picker on send (per your request)
+      setShowEmoji(false);
     } catch {
       toast({ title: "Send failed", status: "error", duration: 2000 });
     }
@@ -320,6 +334,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  // Emoji click handler (emoji-picker-react v4+ signature usually passes emojiObject)
+  const onEmojiClick = (emojiObject, event) => {
+    // emojiObject.emoji is the actual emoji character
+    setNewMessage((prev) => (prev ? prev + emojiObject.emoji : emojiObject.emoji));
+    // Keep picker open to allow multiple selection; user asked to close on send only
   };
 
   // ---------- JSX ----------
@@ -387,7 +408,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             <IconButton aria-label="Forward" icon={<FiCornerDownRight />} size="sm" onClick={() => handleForward(selectedMessages)} />
             <IconButton aria-label="Copy" icon={<FiCopy />} size="sm" onClick={() => handleCopy(selectedMessages)} />
             <IconButton aria-label="Pin" icon={<FaThumbtack />} size="sm" onClick={() => handlePinToggle(selectedMessages)} />
-            <IconButton aria-label="Delete" icon = {<FiTrash />} size="sm" onClick={() => handleDeleteForEveryone(selectedMessages)} />
+            <IconButton aria-label="Delete" icon={<FaTrash />} size="sm" colorScheme="red" onClick={() => handleDeleteForEveryone(selectedMessages)} />
           </HStack>
         </Box>
       )}
@@ -428,22 +449,101 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         {/* Input region */}
         <Box mt={2} borderTop="1px solid" borderColor={dividerBorder} pt={3} flexShrink={0}>
-          {/* Write area */}
+          {/* Write area wrapper - relative so emoji picker can be absolutely positioned above */}
           {mode === "write" ? (
             <FormControl>
-              <Textarea
-                id="prchat-input"
-                ref={textareaRef}
-                value={newMessage}
-                onChange={typingHandler}
-                onKeyDown={onEditorKeyDown}
-                placeholder="Write a markdown message. Use Ctrl/Cmd+Enter to send."
-                minH="48px"
-                maxH="300px"
-                resize="auto"
-                bg={inputBg}
-                borderRadius="md"
-              />
+              <Box position="relative">
+                {/* Textarea */}
+                <Textarea
+                  id="prchat-input"
+                  ref={textareaRef}
+                  value={newMessage}
+                  onChange={typingHandler}
+                  onKeyDown={onEditorKeyDown}
+                  placeholder="Write a markdown message. Use Ctrl/Cmd+Enter to send."
+                  minH="48px"
+                  maxH="300px"
+                  resize="auto"
+                  bg={inputBg}
+                  borderRadius="md"
+                />
+{/* File sharing button */}
+<Box position="absolute" right="112px" top="8px" zIndex={20}>
+  <IconButton
+    size="sm"
+    aria-label="Attach File"
+    onClick={() => {
+      /* This is a placeholder. Add your file attachment logic here. */
+      console.log('Attach file button clicked!');
+    }}
+    icon={<FiPaperclip size={18} />}
+    variant="ghost"
+  />
+</Box>
+                {/* emoji toggle button (inside same relative box so picker aligns) */}
+                <Box position="absolute" right="60px" top="8px" zIndex={30}>
+                  <IconButton
+                    size="sm"
+                    aria-label="Emoji"
+                    onClick={() => setShowEmoji((s) => !s)}
+                    icon={<FaSmile size={18} />}
+                    variant="ghost"
+                  />
+
+                </Box>
+
+                {/* Send button to the right */}
+                <Box position="absolute" right="8px" top="8px" zIndex={20}>
+                  <Button colorScheme="green" onClick={sendMessage} size="sm" isDisabled={!newMessage.trim()}>
+                    <FiSend />
+                  </Button>
+                </Box>
+
+
+                {/* Emoji picker - absolute positioned to appear above textarea */}
+                {showEmoji && (
+                  <Box
+                    position="absolute"
+                    right="8px"
+                    bottom="56px" /* adjust if your textarea height changes */
+                    zIndex={2000}
+                    borderRadius="md"
+                    boxShadow={`0 6px 18px ${pickerShadow}`}
+                    overflow="hidden"
+                  >
+                    <EmojiPicker
+                      onEmojiClick={onEmojiClick}
+                      theme={colorMode === "light" ? "light" : "dark"}
+                      pickerStyle={{
+                        width: "320px",
+                        height: "360px",
+                        background: pickerBg,
+                        color: pickerText,
+                        borderRadius: 8,
+                        boxShadow: "none", // we already set Box shadow above
+                      }}
+                    />
+                  </Box>
+                )}
+              </Box>
+
+              {/* bottom controls: Clear, Write/Preview toggle arranged in single row */}
+              <HStack mt={2} justifyContent="space-between" alignItems="center">
+                <HStack spacing={2}>
+                  <Button onClick={() => { setNewMessage(""); setMode("write"); }} variant="outline" size="sm">
+                    Clear
+                  </Button>
+                </HStack>
+
+                <HStack spacing={2}>
+                  <Button size="sm" variant={mode === "write" ? "solid" : "ghost"} onClick={() => setMode("write")}>
+                    Write
+                  </Button>
+                  <Button size="sm" variant={mode === "preview" ? "solid" : "ghost"} onClick={() => setMode("preview")}>
+                    Preview
+                  </Button>
+                </HStack>
+              </HStack>
             </FormControl>
           ) : (
             <Box p={3} borderRadius="md" bg={previewBg}>
@@ -463,42 +563,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 onUnpin={() => {}}
                 previewMode
               />
+              <HStack mt={2} justifyContent="flex-end">
+                <Button onClick={() => setMode("write")} size="sm">
+                  Edit
+                </Button>
+                <Button colorScheme="green" onClick={sendMessage} size="sm" isDisabled={!newMessage.trim()}>
+                  Send
+                </Button>
+              </HStack>
             </Box>
           )}
-
-          {/* Single-row controls: Close | Write/Preview (center) | Send */}
-          <HStack mt={3} width="100%" alignItems="center" justifyContent="space-between">
-            {/* Left: Close (clears input + cancels reply) */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setNewMessage("");
-                setReplyTo(null);
-                setMode("write");
-              }}
-            >
-              Close
-            </Button>
-
-            {/* Center: Write / Preview toggles */}
-            <HStack spacing={4}>
-              <Button size="sm" variant={mode === "write" ? "solid" : "ghost"} onClick={() => setMode("write")}>
-                Write
-              </Button>
-              <Button size="sm" variant={mode === "preview" ? "solid" : "ghost"} onClick={() => setMode("preview")}>
-                Preview
-              </Button>
-            </HStack>
-
-            {/* Right: Send */}
-            <Button colorScheme="green" onClick={sendMessage} size="sm" isDisabled={!newMessage.trim()}>
-              <FiSend />
-              <Box as="span" ml={2} display={{ base: "none", md: "inline" }}>
-                Send
-              </Box>
-            </Button>
-          </HStack>
         </Box>
       </Box>
     </Box>
