@@ -105,7 +105,7 @@ body.desktop-fixed {
 /* Messages scroll container - this should be the only scrollable region for messages */
 .messages-scroll {
   overflow-y: auto;
-  padding: 18px;
+  padding: 5px;
 }
 
 /* pinned chip */
@@ -126,10 +126,10 @@ body.desktop-fixed {
 /* responsive */
 @media (max-width: 900px) {
   body.desktop-fixed { overflow: auto; }
-  .app-shell { padding: 12px; flex-direction: column; height: auto; }
+  .app-shell { padding: 5px; flex-direction: column; height: auto; }
   .app-left { display: none; }
   .my-chats { width: 100%; max-width: none; min-width: 0; order: 1; }
-  .chat-area { width: 100%; min-width: 0; order: 2; margin-top: 12px; }
+  .chat-area { width: 100%; min-width: 0; order: 2; margin-top: 8px; }
 }
 
 /* avatar helpers */

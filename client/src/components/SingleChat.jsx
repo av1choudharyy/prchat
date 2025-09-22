@@ -15,7 +15,7 @@ import {
   useColorMode,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { FiCopy, FiCornerDownLeft, FiCornerDownRight, FiSend } from "react-icons/fi";
+import { FiCopy, FiCornerDownLeft, FiCornerDownRight, FiSend,FiTrash } from "react-icons/fi";
 import io from "socket.io-client";
 import { FaThumbtack } from "react-icons/fa";
 import { ChatState } from "../context/ChatProvider";
@@ -387,12 +387,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             <IconButton aria-label="Forward" icon={<FiCornerDownRight />} size="sm" onClick={() => handleForward(selectedMessages)} />
             <IconButton aria-label="Copy" icon={<FiCopy />} size="sm" onClick={() => handleCopy(selectedMessages)} />
             <IconButton aria-label="Pin" icon={<FaThumbtack />} size="sm" onClick={() => handlePinToggle(selectedMessages)} />
-          </HStack>
-
-          <HStack spacing={2}>
-            <Button size="sm" colorScheme="red" onClick={() => handleDeleteForEveryone(selectedMessages)}>
-              Delete
-            </Button>
+            <IconButton aria-label="Delete" icon = {<FiTrash />} size="sm" onClick={() => handleDeleteForEveryone(selectedMessages)} />
           </HStack>
         </Box>
       )}

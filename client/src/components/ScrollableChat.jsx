@@ -11,9 +11,14 @@ import {
   HStack,
   Text,
   useColorModeValue,
-  IconButton,
 } from "@chakra-ui/react";
 import Lottie from "lottie-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
+import js from "react-syntax-highlighter/dist/esm/languages/hljs/javascript";
+import py from "react-syntax-highlighter/dist/esm/languages/hljs/python";
+import { atomOneLight, atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 import "../App.css";
 import { isLastMessage, isSameSender } from "../config/ChatLogics";
@@ -21,9 +26,14 @@ import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 import { FaThumbtack } from "react-icons/fa";
 import { MdDone, MdDoneAll } from "react-icons/md";
+import { useColorMode } from "@chakra-ui/react";
+
+// register languages you'd like to support
+SyntaxHighlighter.registerLanguage("javascript", js);
+SyntaxHighlighter.registerLanguage("python", py);
 
 /**
- * ScrollableChat - full component
+ * ScrollableChat component
  *
  * Props:
  *  - messages (array)
@@ -32,6 +42,7 @@ import { MdDone, MdDoneAll } from "react-icons/md";
  *  - selectedMessages (array)
  *  - onToggleSelect(message)
  *  - onUnpin(message)
+ *  - previewMode (optional) -> render simplified UI for preview
  */
 const ScrollableChat = ({
   messages = [],
@@ -40,11 +51,13 @@ const ScrollableChat = ({
   selectedMessages = [],
   onToggleSelect = () => {},
   onUnpin = () => {},
+  previewMode = false,
 }) => {
   const { user } = ChatState();
-  const outerRef = useRef(null);
+  const outerRef = useRef();
+  const { colorMode } = useColorMode();
 
-  // Top-level color tokens (hooks used only here)
+  // color tokens (top-level hooks only)
   const containerBg = useColorModeValue("#ffffff", "#0f1724");
   const myBubbleBg = useColorModeValue("#dcf8c6", "#22543D");
   const myText = useColorModeValue("black", "white");
@@ -56,24 +69,15 @@ const ScrollableChat = ({
   const pinnedChipBg = useColorModeValue("#fff1b8", "#3b2f18");
   const pinnedChipHover = useColorModeValue("#fff1b8", "#3b2f18");
   const timeColor = useColorModeValue("gray.600", "gray.300");
-  const selectedRowBg = useColorModeValue("#F7FAFC", "#0b1220");
+  const selectedBg = useColorModeValue("#F7FAFC", "#0b1220");
   const deletedTextColor = useColorModeValue("gray.600", "gray.400");
 
-  // Selected-bubble variations
-  const myBubbleBgSelected = useColorModeValue("#baf2c2", "#97ac4aff");
-  const otherBubbleBgSelected = useColorModeValue("#e6f7ff", "#97ac4aff");
-  const selectedTextColor = useColorModeValue("black", "white");
-
   useEffect(() => {
-    // Smooth scroll to bottom when messages or typing/pinned change
-    const el = outerRef.current;
-    if (!el) return;
-    // small delay to let DOM render
-    const t = setTimeout(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    }, 40);
-    return () => clearTimeout(t);
-  }, [messages, pinnedMessages, isTyping]);
+    // scroll to bottom when messages or pinned change
+    if (outerRef.current && !previewMode) {
+      outerRef.current.scrollTo({ top: outerRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages, pinnedMessages, isTyping, previewMode]);
 
   const formatTime = (iso) => {
     if (!iso) return "";
@@ -101,23 +105,47 @@ const ScrollableChat = ({
     return <MdDone style={{ color: "#4A5568", marginLeft: 6 }} />;
   };
 
+  const renderMarkdown = (text) => {
+    if (!text) return null;
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ node, inline, className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || "");
+            const lang = match ? match[1] : "";
+            return !inline ? (
+              <SyntaxHighlighter
+                style={colorMode === "light" ? atomOneLight : atomOneDark}
+                language={lang}
+                PreTag="div"
+                {...props}
+              >
+                {String(children).replace(/\n$/, "")}
+              </SyntaxHighlighter>
+            ) : (
+              <code style={{ background: colorMode === "light" ? "#f3f4f6" : "#111827", padding: "0.2em 0.4em", borderRadius: 4 }} {...props}>
+                {children}
+              </code>
+            );
+          },
+          a({ href, children, ...props }) {
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                {children}
+              </a>
+            );
+          },
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    );
+  };
+
   const renderMessage = (message, index) => {
-    const isMine = message.sender && message.sender._id === user._id;
+    const isMine = message.sender && user && message.sender._id === user._id;
     const isSelected = selectedMessages.some((m) => m._id === message._id);
-
-    // bubble background chosen from selection + ownership
-    const bubbleBg = isMine
-      ? isSelected
-        ? myBubbleBgSelected
-        : myBubbleBg
-      : isSelected
-      ? otherBubbleBgSelected
-      : otherBubbleBg;
-
-    const bubbleText = isSelected ? selectedTextColor : isMine ? myText : otherText;
-
-    // wrapper row background for additional contrast
-    const rowBg = isSelected ? selectedRowBg : "transparent";
 
     return (
       <div
@@ -128,14 +156,14 @@ const ScrollableChat = ({
           justifyContent: isMine ? "flex-end" : "flex-start",
           padding: "6px 8px",
           cursor: "pointer",
-          backgroundColor: rowBg,
+          backgroundColor: isSelected ? selectedBg : "transparent",
           borderRadius: 8,
         }}
       >
         {/* Avatar for other user (only when appropriate) */}
         {!isMine &&
-          (isSameSender(messages, message, index, user._id) ||
-            isLastMessage(messages, index, user._id)) && (
+          (isSameSender(messages, message, index, user?._id) ||
+            isLastMessage(messages, index, user?._id)) && (
             <Tooltip
               label={message.sender?.name || "Unknown"}
               placement="bottom-start"
@@ -160,20 +188,18 @@ const ScrollableChat = ({
               top="-8px"
               right={isMine ? "-6px" : undefined}
               left={!isMine ? "-6px" : undefined}
-              title="Pinned"
             >
-              <FaThumbtack style={{ fontSize: 14, color: "#D69E2E" }} />
+              <FaThumbtack style={{ fontSize: 12, color: "#D69E2E" }} />
             </Box>
           )}
 
           <Box
-            backgroundColor={bubbleBg}
-            color={bubbleText}
+            backgroundColor={isMine ? myBubbleBg : otherBubbleBg}
+            color={isMine ? myText : otherText}
             borderRadius="12px"
-            padding="10px 14px"
-            lineHeight="1.4"
-            boxShadow={isSelected ? "md" : "sm"}
-            transition="background-color 160ms ease, box-shadow 160ms ease"
+            padding="8px 12px"
+            lineHeight="1.3"
+            boxShadow="sm"
           >
             {/* Reply snippet (compact) */}
             {message.replyTo && (
@@ -201,7 +227,9 @@ const ScrollableChat = ({
                 This message was deleted
               </Text>
             ) : (
-              <Text whiteSpace="pre-wrap">{message.content}</Text>
+              <Box whiteSpace="pre-wrap">
+                {renderMarkdown(message.content)}
+              </Box>
             )}
 
             {/* footer: time + status */}
@@ -217,76 +245,70 @@ const ScrollableChat = ({
     );
   };
 
-  return (
-    <Box
-      bg={containerBg}
-      p={0}
-      height="100%"
-      display="flex"
-      flexDirection="column"
-      minHeight={0} /* allow children to flex */
-    >
-      {/* compact pinned strip (small chips) */}
-      {pinnedMessages && pinnedMessages.length > 0 && (
-        <Box
-          bg={pinnedBg}
-          p={1}
-          borderRadius="md"
-          mb={1}
-          display="flex"
-          alignItems="center"
-          gap={1}
-        >
-          <Text fontSize="sm" fontWeight="semibold" flexShrink={0}>
-            Pinned
-          </Text>
+  // compact pinned strip used only to display preview or pinned chips
+  const renderPinnedStrip = () => {
+    if (!pinnedMessages || pinnedMessages.length === 0) return null;
+    return (
+      <Box bg={pinnedBg} p={1} borderRadius="md" mb={2}>
+        <HStack spacing={2} wrap="nowrap" overflowX="auto" px={1}>
+          {pinnedMessages.map((msg) => (
+            <Menu key={msg._id}>
+              <MenuButton
+                as={Box}
+                cursor="pointer"
+                p={1}
+                px={3}
+                borderRadius="full"
+                bg={pinnedChipBg}
+                _hover={{ bg: pinnedChipHover }}
+                display="flex"
+                alignItems="center"
+                minW="64px"
+                maxW="220px"
+                whiteSpace="nowrap"
+                textOverflow="ellipsis"
+                overflow="hidden"
+              >
+                <Text fontSize="sm" noOfLines={1} maxW="150px" mr={2}>
+                  {msg.content || "—"}
+                </Text>
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={() => onUnpin(msg)}>Unpin</MenuItem>
+              </MenuList>
+            </Menu>
+          ))}
+        </HStack>
+      </Box>
+    );
+  };
 
-          <HStack spacing={2} wrap="nowrap" overflowX="auto" minW={0}>
-            {pinnedMessages.map((msg) => (
-              <Menu key={msg._id}>
-                <MenuButton
-                  as={Box}
-                  cursor="pointer"
-                  p={1}
-                  px={3}
-                  borderRadius="200px"
-                  bg={pinnedChipBg}
-                  _hover={{ bg: pinnedChipHover }}
-                  display="inline-flex"
-                  alignItems="center"
-                  maxW="100px"
-                  whiteSpace="nowrap"
-                  textOverflow="ellipsis"
-                  overflow="hidden"
-                >
-                  <Text fontSize="sm" noOfLines={1} mr={2} flex="1" overflow="hidden">
-                    {msg.content || "—"}
-                  </Text>
-                  <FaThumbtack style={{ fontSize: 2, color: "#D69E2E", marginLeft: 1 }} />
-                </MenuButton>
-                <MenuList>
-                  <MenuItem onClick={() => onUnpin(msg)}>Unpin</MenuItem>
-                </MenuList>
-              </Menu>
-            ))}
-          </HStack>
+  // If called in previewMode we only render the messages area, smaller whitespace
+  if (previewMode) {
+    return (
+      <Box bg={containerBg} p={0} display="flex" flexDirection="column">
+        <Box ref={outerRef} style={{ overflowY: "auto" }} px={1}>
+          {messages.map((m, i) => (
+            <React.Fragment key={m._id}>{renderMessage(m, i)}</React.Fragment>
+          ))}
         </Box>
-      )}
+      </Box>
+    );
+  }
+
+  return (
+    <Box bg={containerBg} p={0} height="100%" display="flex" flexDirection="column">
+      {/* pinned messages area */}
+      {renderPinnedStrip()}
 
       {/* messages list (scrollable) */}
-      <Box
-        ref={outerRef}
-        style={{ overflowY: "auto" }}
-        flex="1"
-        px={1}
-        className="messages-scroll"
-      >
+      <Box ref={outerRef} style={{ overflowY: "auto", paddingBottom: 8 }} flex="1" px={1} className="messages-scroll">
         {messages.map((m, i) => (
           <React.Fragment key={m._id}>{renderMessage(m, i)}</React.Fragment>
         ))}
       </Box>
 
-      {/* typing indicator - sits above input in parent SingleChat */}
+      {/* typing indicator */}
       {isTyping && (
         <Box mt={2} mb={2} display="flex" alignItems="center">
           <Box mr={2} style={{ width: 36 }}>
