@@ -1,23 +1,29 @@
-import { Box } from "@chakra-ui/react";
-
+// client/src/components/ChatBox.jsx
+import React from "react";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import { ChatState } from "../context/ChatProvider";
 import SingleChat from "./SingleChat";
 
+/**
+ * ChatBox wrapper — places SingleChat into the right column
+ */
 const ChatBox = ({ fetchAgain, setFetchAgain }) => {
   const { selectedChat } = ChatState();
+
   return (
-    <Box
-      display={{ base: selectedChat ? "flex" : "none", md: "flex" }}
-      alignItems="center"
-      flexDir="column"
-      p={3}
-      bg="white"
-      w={{ base: "100%", md: "68%" }}
-      borderRadius="lg"
-      borderWidth="1px"
-    >
-      <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
-    </Box>
+    <Flex direction="column" height="100%">
+      {!selectedChat ? (
+        <Flex align="center" justify="center" height="100%">
+          <Text fontSize="xl" color="gray.500">
+            Select a chat to start messaging
+          </Text>
+        </Flex>
+      ) : (
+        <Box height="100%" width="100%">
+          <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+        </Box>
+      )}
+    </Flex>
   );
 };
 

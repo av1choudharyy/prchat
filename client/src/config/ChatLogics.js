@@ -1,62 +1,62 @@
+// src/config/ChatLogics.js
+// Defensive, well-documented helper functions for chat UI logic.
+
 export const getSender = (loggedUser, users) => {
-  return users[0]._id === loggedUser._id ? users[1].name : users[0].name;
+  // returns the display name of the *other* user in a one-to-one chat
+  if (!loggedUser || !users || !Array.isArray(users) || users.length === 0) return "";
+  // find user whose id !== loggedUser._id
+  const other = users.find((u) => u && u._id !== loggedUser._id);
+  return other?.name ?? users[0]?.name ?? "";
 };
 
 export const getSenderFull = (loggedUser, users) => {
-  return users[0]._id === loggedUser._id ? users[1] : users[0];
+  // returns the full user object of the other participant for one-to-one chat
+  if (!loggedUser || !users || !Array.isArray(users) || users.length === 0) return null;
+  return users.find((u) => u && u._id !== loggedUser._id) ?? users[0] ?? null;
 };
 
-export const isSameSender = (
-  messages,
-  currentMessage,
-  currentMessageIndex,
-  loggedUserId
-) => {
+// used by ScrollableChat to decide whether to show avatar (sender change)
+export const isSameSender = (messages, m, i, userId) => {
+  if (!messages || !Array.isArray(messages) || !m) return false;
+  // if next message exists and its sender is different from current message sender
+  const next = messages[i + 1];
   return (
-    currentMessageIndex < messages.length - 1 &&
-    (messages[currentMessageIndex + 1].sender._id !==
-      currentMessage.sender._id ||
-      messages[currentMessageIndex + 1].sender._id === undefined) &&
-    messages[currentMessageIndex].sender._id !== loggedUserId
+    i < messages.length - 1 &&
+    (next?.sender?._id !== m.sender?._id) &&
+    m.sender?._id !== userId
   );
 };
 
-export const isLastMessage = (messages, currentMessageIndex, loggedUserId) => {
-  return (
-    currentMessageIndex === messages.length - 1 &&
-    messages[messages.length - 1].sender._id !== loggedUserId &&
-    messages[messages.length - 1].sender._id
-  );
+export const isLastMessage = (messages, i, userId) => {
+  if (!messages || !Array.isArray(messages)) return false;
+  const lastIndex = messages.length - 1;
+  return lastIndex === i && messages[lastIndex]?.sender?._id !== userId;
 };
 
-export const isSameSenderMargin = (
-  messages,
-  currentMessage,
-  currentMessageIndex,
-  loggedUserId
-) => {
-  if (
-    currentMessageIndex < messages.length - 1 &&
-    messages[currentMessageIndex + 1].sender._id ===
-      currentMessage.sender._id &&
-    messages[currentMessageIndex].sender._id !== loggedUserId
-  )
-    return 33;
-  else if (
-    (currentMessageIndex < messages.length - 1 &&
-      messages[currentMessageIndex + 1].sender._id !==
-        currentMessage.sender._id &&
-      messages[currentMessageIndex].sender._id !== loggedUserId) ||
-    (currentMessageIndex === messages.length - 1 &&
-      messages[currentMessageIndex].sender._id !== loggedUserId)
-  )
-    return 0;
-  else return "auto";
+export const isSameUser = (messages, m, i, userId) => {
+  if (!messages || !Array.isArray(messages) || !m) return false;
+  const prev = messages[i - 1];
+  return i > 0 && prev?.sender?._id === m.sender?._id;
 };
 
-export const isSameUser = (messages, currentMessage, currentMessageIndex) => {
-  return (
-    currentMessageIndex > 0 &&
-    messages[currentMessageIndex - 1].sender._id === currentMessage.sender._id
-  );
+/**
+ * isSameSenderMargin - returns a margin-left value (string with px) used by message bubble layout
+ * - original projects sometimes return a number (e.g. 33). Here we return a CSS value string.
+ */
+export const isSameSenderMargin = (messages, m, i, userId) => {
+  if (!messages || !Array.isArray(messages) || !m) return "0px";
+
+  // if message is from current user, align to right (auto margin)
+  if (m.sender?._id === userId) return "auto";
+
+  // if next message has same sender => indent to align with avatar
+  const next = messages[i + 1];
+  if (i < messages.length - 1 && next?.sender?._id === m.sender?._id) return "48px";
+
+  // if previous message is same sender (grouped), keep same indent
+  const prev = messages[i - 1];
+  if (i > 0 && prev?.sender?._id === m.sender?._id) return "48px";
+
+  // otherwise no extra left margin
+  return "0px";
 };

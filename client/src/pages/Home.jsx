@@ -7,6 +7,7 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -24,25 +25,38 @@ const Home = () => {
     }
   }, [navigate]);
 
+  // Light/dark mode values
+  const bg = useColorModeValue("gray.100", "gray.900"); // page background
+  const boxBg = useColorModeValue("white", "gray.700"); // card background
+  const textColor = useColorModeValue("black", "white");
+
   return (
-    <Container maxWidth="xl">
+    <Container maxWidth="xl" minH="100vh" bg={bg} centerContent>
+      {/* App Title */}
       <Box
-        d="flex"
+        display="flex"
         justifyContent="center"
+        alignItems="center"
         p={3}
-        bg="white"
+        bg={boxBg}
         w="100%"
         m="40px 0 15px 0"
         borderRadius="lg"
         borderWidth="1px"
       >
-        <Text fontSize="4xl" fontFamily="Work sans" textAlign="center">
+        <Text
+          fontSize="4xl"
+          fontFamily="Work sans"
+          textAlign="center"
+          color={textColor}
+        >
           PRChat
         </Text>
       </Box>
 
-      <Box bg="white" w="100%" p={4} borderRadius="lg" borderWidth="1px">
-        <Tabs isFitted variant="soft-rounded">
+      {/* Login / Signup Tabs */}
+      <Box bg={boxBg} w="100%" p={4} borderRadius="lg" borderWidth="1px">
+        <Tabs isFitted variant="soft-rounded" colorScheme="blue">
           <TabList mb="1em">
             <Tab>Login</Tab>
             <Tab>Sign Up</Tab>
