@@ -14,11 +14,18 @@ import {
   Button,
   useColorMode,
   useColorModeValue,
+  Input,
 } from "@chakra-ui/react";
-import { FiCopy, FiCornerDownLeft, FiCornerUpRight, FiSend, FiPaperclip } from "react-icons/fi";
+import {
+  FiCopy,
+  FiCornerDownLeft,
+  FiCornerUpRight,
+  FiSend,
+  FiPaperclip,
+  FiSearch,
+} from "react-icons/fi";
 import io from "socket.io-client";
-import { FaThumbtack, FaTrash } from "react-icons/fa";
-import { FaSmile } from "react-icons/fa";
+import { FaThumbtack, FaTrash, FaSmile } from "react-icons/fa";
 import EmojiPicker from "emoji-picker-react";
 
 import { ChatState } from "../context/ChatProvider";
@@ -51,12 +58,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [mode, setMode] = useState("write"); // "write" | "preview"
   const textareaRef = useRef(null);
 
-  const { user, selectedChat, setSelectedChat, notification, setNotification } = ChatState();
+  // search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [scrollToMessageId, setScrollToMessageId] = useState(null);
+
+  const { user, selectedChat, setSelectedChat, notification, setNotification } =
+    ChatState();
   const toast = useToast();
 
-  // ----------------------------
-  // Chakra color hooks (TOP-LEVEL: do not move inside any conditional)
-  // ----------------------------
+  // Chakra color hooks (top-level only)
   const { colorMode, toggleColorMode } = useColorMode();
 
   const inputBg = useColorModeValue("#fff", "#1a202c");
@@ -78,6 +90,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const pickerShadow = useColorModeValue("rgba(15,23,36,0.06)", "rgba(255,255,255,0.03)");
   const pickerText = useColorModeValue("#111827", "#E6EEF8");
 
+  // search hover background (MUST be a top-level hook call)
+  const searchHoverBg = useColorModeValue("gray.100", "gray.700");
+
   // ----------------------------
   // Socket setup & listeners
   // ----------------------------
@@ -90,7 +105,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     socket.on("stop typing", () => setIsTyping(false));
 
     socket.on("message_delivered", ({ messageId }) => {
-      setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, delivered: true } : m)));
+      setMessages((prev) =>
+        prev.map((m) => (m._id === messageId ? { ...m, delivered: true } : m))
+      );
     });
 
     socket.on("message_seen", ({ messageId, userId }) => {
@@ -99,7 +116,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           m._id === messageId
             ? {
                 ...m,
-                seenBy: Array.isArray(m.seenBy) ? Array.from(new Set([...m.seenBy, userId])) : [userId],
+                seenBy: Array.isArray(m.seenBy)
+                  ? Array.from(new Set([...m.seenBy, userId]))
+                  : [userId],
               }
             : m
         )
@@ -107,8 +126,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     });
 
     socket.on("message recieved", (newMessageRecieved) => {
-      // defensive read of chat id (server may return array)
-      const incomingChatId = newMessageRecieved?.chat && newMessageRecieved.chat[0] && newMessageRecieved.chat[0]._id;
+      const incomingChatId =
+        newMessageRecieved?.chat && newMessageRecieved.chat[0] && newMessageRecieved.chat[0]._id;
       if (!selectedChatCompare || selectedChatCompare._id !== incomingChatId) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
@@ -118,11 +137,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         const deliveredMsg = { ...newMessageRecieved, delivered: true, seenBy: [] };
         setMessages((prev) => [...prev, deliveredMsg]);
 
-        // best-effort acks to server
         try {
           socket.emit("message_delivered", { messageId: deliveredMsg._id, chatId: selectedChat._id });
-        } catch {}
-        try {
           socket.emit("message_seen", { messageId: deliveredMsg._id, chatId: selectedChat._id, userId: user._id });
         } catch {}
       }
@@ -210,6 +226,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     handleClearSelection();
     toast({ title: "Deleted for me", status: "info", duration: 1600 });
   };
+
   const handleDeleteForEveryone = (msgs) => {
     setMessages((prev) =>
       prev.map((m) => (msgs.some((s) => s._id === m._id) ? { ...m, deletedForEveryone: true, content: "" } : m))
@@ -298,7 +315,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       setNewMessage("");
       setReplyTo(null);
 
-      // close emoji picker on send (per your request)
+      // close emoji picker on send
       setShowEmoji(false);
     } catch {
       toast({ title: "Send failed", status: "error", duration: 2000 });
@@ -336,12 +353,27 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
-  // Emoji click handler (emoji-picker-react v4+ signature usually passes emojiObject)
-  const onEmojiClick = (emojiObject, event) => {
-    // emojiObject.emoji is the actual emoji character
+  // Emoji click handler
+  const onEmojiClick = (emojiObject) => {
     setNewMessage((prev) => (prev ? prev + emojiObject.emoji : emojiObject.emoji));
-    // Keep picker open to allow multiple selection; user asked to close on send only
   };
+
+  // search logic: compute results whenever query or messages change
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const q = searchQuery.toLowerCase();
+    setSearchResults(messages.filter((m) => (m.content || "").toLowerCase().includes(q)));
+  }, [searchQuery, messages]);
+
+  // when a scroll target is set, clear it after a short delay (scroll/highlight performed by ScrollableChat)
+  useEffect(() => {
+    if (!scrollToMessageId) return;
+    const t = setTimeout(() => setScrollToMessageId(null), 3000);
+    return () => clearTimeout(t);
+  }, [scrollToMessageId]);
 
   // ---------- JSX ----------
   return (
@@ -384,9 +416,49 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           ) : (
             <ProfileModal user={getSenderFull(user, selectedChat?.users)} />
           )}
+
+          {/* search icon/button */}
+          <IconButton aria-label="Search" icon={<FiSearch />} onClick={() => setShowSearch((s) => !s)} size="sm" variant="ghost" />
+
           <IconButton aria-label="Toggle color mode" icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />} onClick={toggleColorMode} size="sm" variant="ghost" />
         </HStack>
       </Box>
+
+      {/* Search overlay (small) */}
+      {showSearch && (
+        <Box bg={headerBg} borderBottom="1px solid" borderColor={dividerBorder} px={3} py={2}>
+          <Input
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size="sm"
+            bg={inputBg}
+          />
+          {searchResults.length > 0 && (
+            <Box mt={2} maxH="200px" overflowY="auto">
+              {searchResults.map((msg) => (
+                <Box
+                  key={msg._id}
+                  p={2}
+                  borderRadius="md"
+                  _hover={{ bg: searchHoverBg, cursor: "pointer" }}
+                  onClick={() => {
+                    setScrollToMessageId(msg._id);
+                    setShowSearch(false);
+                  }}
+                >
+                  <Text fontSize="sm" noOfLines={2}>
+                    {msg.content || "—"}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
+                    {new Date(msg.createdAt).toLocaleString()}
+                  </Text>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+      )}
 
       {/* Action bar when messages selected */}
       {selectedMessages.length > 0 && (
@@ -426,6 +498,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               selectedMessages={selectedMessages}
               onToggleSelect={handleToggleSelect}
               onUnpin={handleUnpin}
+              scrollToMessageId={scrollToMessageId}
             />
           </Box>
         )}
@@ -449,7 +522,6 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         {/* Input region */}
         <Box mt={2} borderTop="1px solid" borderColor={dividerBorder} pt={3} flexShrink={0}>
-          {/* Write area wrapper - relative so emoji picker can be absolutely positioned above */}
           {mode === "write" ? (
             <FormControl>
               <Box position="relative">
@@ -467,49 +539,51 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   bg={inputBg}
                   borderRadius="md"
                 />
-{/* File sharing button */}
-<Box position="absolute" right="112px" top="8px" zIndex={20}>
-  <IconButton
-    size="sm"
-    aria-label="Attach File"
-    onClick={() => {
-      /* This is a placeholder. Add your file attachment logic here. */
-      console.log('Attach file button clicked!');
-    }}
-    icon={<FiPaperclip size={18} />}
-    variant="ghost"
-  />
-</Box>
-                {/* emoji toggle button (inside same relative box so picker aligns) */}
-                <Box position="absolute" right="60px" top="8px" zIndex={30}>
+
+                {/* File attach placeholder (left of emoji) */}
+                <Box position="absolute" right="100px" top="8px" zIndex={20}>
                   <IconButton
+                    size="sm"
+                    aria-label="Attach File"
+                    onClick={() => {
+                      console.log("Attach file clicked");
+                    }}
+                    icon={<FiPaperclip size={26} />}
+                    variant="ghost"
+                  />
+                </Box>
+
+                {/* emoji toggle */}
+                <Box position="absolute" right="55px" top="8px" zIndex={30}>
+                  <IconButton
+                    colorScheme = "Yellow"
                     size="sm"
                     aria-label="Emoji"
                     onClick={() => setShowEmoji((s) => !s)}
-                    icon={<FaSmile size={18} />}
+                    icon={<FaSmile size={28} />}
                     variant="ghost"
-                  />
 
+                  />
                 </Box>
 
-                {/* Send button to the right */}
-                <Box position="absolute" right="8px" top="8px" zIndex={20}>
+                {/* Send button */}
+                <Box position="absolute" right="3px" top="8px" zIndex={10}>
                   <Button colorScheme="green" onClick={sendMessage} size="sm" isDisabled={!newMessage.trim()}>
                     <FiSend />
                   </Button>
                 </Box>
 
-
-                {/* Emoji picker - absolute positioned to appear above textarea */}
+                {/* Emoji picker - appears above input, supports dark/light theme */}
                 {showEmoji && (
                   <Box
                     position="absolute"
-                    right="8px"
-                    bottom="56px" /* adjust if your textarea height changes */
-                    zIndex={2000}
+                    right="3px"
+                    bottom="56px"
+                    zIndex={200}
                     borderRadius="md"
                     boxShadow={`0 6px 18px ${pickerShadow}`}
                     overflow="hidden"
+                    background={pickerBg}
                   >
                     <EmojiPicker
                       onEmojiClick={onEmojiClick}
@@ -520,16 +594,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                         background: pickerBg,
                         color: pickerText,
                         borderRadius: 8,
-                        boxShadow: "none", // we already set Box shadow above
+                        boxShadow: "none",
                       }}
                     />
                   </Box>
                 )}
               </Box>
 
-              {/* bottom controls: Clear, Write/Preview toggle arranged in single row */}
+              {/* Bottom controls in single row: Close (if reply preview open), Clear, Write/Preview toggle */}
               <HStack mt={2} justifyContent="space-between" alignItems="center">
                 <HStack spacing={2}>
+                  {/* If there's a reply preview, show Close for it */}
+                  {replyTo && (
+                    <Button size="sm" variant="outline" onClick={handleCancelReply}>
+                      Close
+                    </Button>
+                  )}
                   <Button onClick={() => { setNewMessage(""); setMode("write"); }} variant="outline" size="sm">
                     Clear
                   </Button>

@@ -1,5 +1,5 @@
 // client/src/components/ScrollableChat.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Avatar,
   Tooltip,
@@ -11,6 +11,7 @@ import {
   HStack,
   Text,
   useColorModeValue,
+  useColorMode,
 } from "@chakra-ui/react";
 import Lottie from "lottie-react";
 import ReactMarkdown from "react-markdown";
@@ -26,7 +27,6 @@ import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 import { FaThumbtack } from "react-icons/fa";
 import { MdDone, MdDoneAll } from "react-icons/md";
-import { useColorMode } from "@chakra-ui/react";
 
 // register languages you'd like to support
 SyntaxHighlighter.registerLanguage("javascript", js);
@@ -43,6 +43,7 @@ SyntaxHighlighter.registerLanguage("python", py);
  *  - onToggleSelect(message)
  *  - onUnpin(message)
  *  - previewMode (optional) -> render simplified UI for preview
+ *  - scrollToMessageId (optional) -> when provided, the component will scroll to that message and briefly highlight it
  */
 const ScrollableChat = ({
   messages = [],
@@ -52,10 +53,13 @@ const ScrollableChat = ({
   onToggleSelect = () => {},
   onUnpin = () => {},
   previewMode = false,
+  scrollToMessageId = null,
 }) => {
   const { user } = ChatState();
   const outerRef = useRef();
   const { colorMode } = useColorMode();
+  const [highlightedId, setHighlightedId] = useState(null);
+  const highlightTimerRef = useRef(null);
 
   // color tokens (top-level hooks only)
   const containerBg = useColorModeValue("#ffffff", "#0f1724");
@@ -73,11 +77,52 @@ const ScrollableChat = ({
   const deletedTextColor = useColorModeValue("gray.600", "gray.400");
 
   useEffect(() => {
-    // scroll to bottom when messages or pinned change
-    if (outerRef.current && !previewMode) {
+    // scroll to bottom when messages or pinned change (unless previewMode)
+    if (outerRef.current && !previewMode && !scrollToMessageId) {
+      // only auto-scroll if not jumping to a specific message
       outerRef.current.scrollTo({ top: outerRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [messages, pinnedMessages, isTyping, previewMode]);
+  }, [messages, pinnedMessages, isTyping, previewMode, scrollToMessageId]);
+
+  // When parent requests scroll to a specific message id
+  useEffect(() => {
+    if (!scrollToMessageId) return;
+
+    // Clear any previous highlight timer
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = null;
+    }
+
+    const el = document.getElementById(`msg-${scrollToMessageId}`);
+    if (el && outerRef.current) {
+      // Scroll the container so the element sits nicely (center-ish)
+      const containerRect = outerRef.current.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const offsetTop = el.offsetTop;
+      // compute a target so message is a bit above bottom for context
+      const targetScroll = Math.max(0, offsetTop - containerRect.height / 3);
+      outerRef.current.scrollTo({ top: targetScroll, behavior: "smooth" });
+
+      // set temporary highlight
+      setHighlightedId(scrollToMessageId);
+      highlightTimerRef.current = setTimeout(() => {
+        setHighlightedId(null);
+        highlightTimerRef.current = null;
+      }, 2000);
+    } else {
+      // fallback: if element not found, try scroll to bottom
+      outerRef.current?.scrollTo({ top: outerRef.current.scrollHeight, behavior: "smooth" });
+    }
+    // we intentionally only react to scrollToMessageId changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToMessageId]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
 
   const formatTime = (iso) => {
     if (!iso) return "";
@@ -124,7 +169,14 @@ const ScrollableChat = ({
                 {String(children).replace(/\n$/, "")}
               </SyntaxHighlighter>
             ) : (
-              <code style={{ background: colorMode === "light" ? "#f3f4f6" : "#111827", padding: "0.2em 0.4em", borderRadius: 4 }} {...props}>
+              <code
+                style={{
+                  background: colorMode === "light" ? "#f3f4f6" : "#111827",
+                  padding: "0.2em 0.4em",
+                  borderRadius: 4,
+                }}
+                {...props}
+              >
                 {children}
               </code>
             );
@@ -146,9 +198,11 @@ const ScrollableChat = ({
   const renderMessage = (message, index) => {
     const isMine = message.sender && user && message.sender._id === user._id;
     const isSelected = selectedMessages.some((m) => m._id === message._id);
+    const isHighlighted = highlightedId === message._id;
 
     return (
       <div
+        id={`msg-${message._id}`}
         key={message._id}
         onClick={() => onToggleSelect(message)}
         style={{
@@ -158,17 +212,16 @@ const ScrollableChat = ({
           cursor: "pointer",
           backgroundColor: isSelected ? selectedBg : "transparent",
           borderRadius: 8,
+          transition: "box-shadow 200ms, transform 120ms",
+          boxShadow: isHighlighted ? (colorMode === "light" ? "0 0 0 3px rgba(45,156,219,0.12)" : "0 0 0 3px rgba(45,156,219,0.16)") : undefined,
+          transform: isHighlighted ? "translateY(-2px)" : undefined,
         }}
       >
         {/* Avatar for other user (only when appropriate) */}
         {!isMine &&
           (isSameSender(messages, message, index, user?._id) ||
             isLastMessage(messages, index, user?._id)) && (
-            <Tooltip
-              label={message.sender?.name || "Unknown"}
-              placement="bottom-start"
-              hasArrow
-            >
+            <Tooltip label={message.sender?.name || "Unknown"} placement="bottom-start" hasArrow>
               <Avatar
                 mt="7px"
                 mr="8px"
@@ -183,12 +236,7 @@ const ScrollableChat = ({
         <Box maxWidth="75%" position="relative">
           {/* pin icon indicator */}
           {message.pinned && (
-            <Box
-              position="absolute"
-              top="-8px"
-              right={isMine ? "-6px" : undefined}
-              left={!isMine ? "-6px" : undefined}
-            >
+            <Box position="absolute" top="-8px" right={isMine ? "-6px" : undefined} left={!isMine ? "-6px" : undefined}>
               <FaThumbtack style={{ fontSize: 12, color: "#D69E2E" }} />
             </Box>
           )}
@@ -227,9 +275,7 @@ const ScrollableChat = ({
                 This message was deleted
               </Text>
             ) : (
-              <Box whiteSpace="pre-wrap">
-                {renderMarkdown(message.content)}
-              </Box>
+              <Box whiteSpace="pre-wrap">{renderMarkdown(message.content)}</Box>
             )}
 
             {/* footer: time + status */}
