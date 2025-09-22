@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { useEffect, useState, useRef } from "react";
+import { ArrowBackIcon, CloseIcon, SearchIcon, AttachmentIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
   IconButton,
-  Input,
   Spinner,
   Text,
   useToast,
+  Flex,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Badge,
+  Progress,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -16,8 +21,10 @@ import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import MarkdownEditor from "./MarkdownEditor";
+import "../styles/MarkdownChat.css";
 
-const ENDPOINT = "http://localhost:5000"; // If you are deploying the app, replace the value with "https://YOUR_DEPLOYED_APPLICATION_URL" then run "npm run build" to create a production build
+const ENDPOINT = "http://localhost:5001"; // Backend is running on port 5001
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
@@ -27,6 +34,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -83,6 +98,22 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   }, [selectedChat]);
 
+  // Add keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        toggleSearch();
+      }
+      if (e.key === 'Escape' && showSearch) {
+        toggleSearch();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
+
   useEffect(() => {
     socket.on("message recieved", (newMessageRecieved) => {
       if (
@@ -101,40 +132,225 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   });
 
-  const sendMessage = async (e) => {
-    // Check if 'Enter' key is pressed and we have something inside 'newMessage'
-    if (e.key === "Enter" && newMessage) {
-      socket.emit("stop typing", selectedChat._id);
-      try {
-        setNewMessage(""); // Clear message field before making API call (won't affect API call as the function is asynchronous)
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
 
-        const response = await fetch("/api/message", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            content: newMessage,
-            chatId: selectedChat._id,
-          }),
-        });
-        const data = await response.json();
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
 
-        socket.emit("new message", data);
-        setNewMessage("");
-        setMessages([...messages, data]); // Add new message with existing messages
-      } catch (error) {
-        return toast({
-          title: "Error Occured!",
-          description: "Failed to send the Message",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-          position: "bottom-right",
-          variant: "solid",
-        });
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 50MB",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      // Upload file to server
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        console.error("Upload failed:", errorData);
+        throw new Error(errorData.message || "Upload failed");
       }
+
+      const uploadData = await uploadResponse.json();
+
+      // Send message with media
+      const messageData = {
+        content: newMessage || file.name,
+        chatId: selectedChat._id,
+        mediaUrl: uploadData.fileData.url,
+        mediaType: uploadData.fileData.mediaType,
+        fileName: uploadData.fileData.originalName,
+        fileSize: uploadData.fileData.size,
+      };
+
+      if (replyingTo) {
+        messageData.replyTo = replyingTo._id;
+      }
+
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messageData),
+      });
+
+      const data = await response.json();
+      socket.emit("new message", data);
+      setMessages([...messages, data]);
+      setNewMessage("");
+      setReplyingTo(null);
+
+      toast({
+        title: "File sent successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload file",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+    } finally {
+      setUploadingFile(false);
+      setUploadProgress(0);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // Search functionality
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setCurrentSearchIndex(0);
+      return;
+    }
+
+    // Search through messages
+    const results = messages.filter((message, index) =>
+      message.content?.toLowerCase().includes(query.toLowerCase())
+    ).map((message, idx) => ({
+      message,
+      index: messages.indexOf(message)
+    }));
+
+    setSearchResults(results);
+    setCurrentSearchIndex(0);
+
+    // Scroll to first result if found
+    if (results.length > 0) {
+      scrollToMessage(results[0].index);
+    }
+  };
+
+  const scrollToMessage = (messageIndex) => {
+    const messageElements = document.querySelectorAll('.message-item');
+    if (messageElements[messageIndex]) {
+      messageElements[messageIndex].scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+
+      // Add highlight effect
+      messageElements[messageIndex].classList.add('highlight-message');
+      setTimeout(() => {
+        messageElements[messageIndex].classList.remove('highlight-message');
+      }, 2000);
+    }
+  };
+
+  const handleNextSearchResult = () => {
+    if (searchResults.length === 0) return;
+    const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+    setCurrentSearchIndex(nextIndex);
+    scrollToMessage(searchResults[nextIndex].index);
+  };
+
+  const handlePrevSearchResult = () => {
+    if (searchResults.length === 0) return;
+    const prevIndex = currentSearchIndex === 0
+      ? searchResults.length - 1
+      : currentSearchIndex - 1;
+    setCurrentSearchIndex(prevIndex);
+    scrollToMessage(searchResults[prevIndex].index);
+  };
+
+  const toggleSearch = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      // Clear search when closing
+      setSearchQuery("");
+      setSearchResults([]);
+      setCurrentSearchIndex(0);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+
+    socket.emit("stop typing", selectedChat._id);
+    const messageToSend = newMessage; // Store message before clearing
+    const replyToId = replyingTo?._id; // Store reply ID before clearing
+
+    try {
+      setNewMessage(""); // Clear message field immediately for better UX
+      setReplyingTo(null); // Clear reply state
+
+      const requestBody = {
+        content: messageToSend, // Use stored message
+        chatId: selectedChat._id,
+      };
+
+      // Add reply reference if replying to a message
+      if (replyToId) {
+        requestBody.replyTo = replyToId;
+      }
+
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+      const data = await response.json();
+
+      socket.emit("new message", data);
+      setMessages([...messages, data]); // Add new message with existing messages
+    } catch (error) {
+      setNewMessage(messageToSend); // Restore message on error
+      setReplyingTo(replyToId ? { _id: replyToId } : null); // Restore reply state on error
+      return toast({
+        title: "Error Occured!",
+        description: "Failed to send the Message",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+        variant: "solid",
+      });
     }
   };
 
@@ -185,19 +401,85 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             {!selectedChat.isGroupChat ? (
               <>
                 {getSender(user, selectedChat.users)}
-                <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                <Flex gap={2}>
+                  <IconButton
+                    icon={<SearchIcon />}
+                    onClick={toggleSearch}
+                    variant={showSearch ? "solid" : "ghost"}
+                    aria-label="Search messages"
+                  />
+                  <ProfileModal user={getSenderFull(user, selectedChat.users)} />
+                </Flex>
               </>
             ) : (
               <>
                 {selectedChat.chatName.toUpperCase()}
-                <UpdateGroupChatModal
-                  fetchAgain={fetchAgain}
-                  setFetchAgain={setFetchAgain}
-                  fetchMessages={fetchMessages}
-                />
+                <Flex gap={2}>
+                  <IconButton
+                    icon={<SearchIcon />}
+                    onClick={toggleSearch}
+                    variant={showSearch ? "solid" : "ghost"}
+                    aria-label="Search messages"
+                  />
+                  <UpdateGroupChatModal
+                    fetchAgain={fetchAgain}
+                    setFetchAgain={setFetchAgain}
+                    fetchMessages={fetchMessages}
+                  />
+                </Flex>
               </>
             )}
           </Text>
+
+          {/* Search Bar */}
+          {showSearch && (
+            <Box
+              p={3}
+              mb={2}
+              bg="white"
+              borderRadius="lg"
+              boxShadow="sm"
+            >
+              <Flex gap={2} align="center">
+                <InputGroup flex={1}>
+                  <InputLeftElement pointerEvents="none">
+                    <SearchIcon color="gray.300" />
+                  </InputLeftElement>
+                  <Input
+                    placeholder="Search messages..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    autoFocus
+                  />
+                </InputGroup>
+                {searchResults.length > 0 && (
+                  <>
+                    <Badge colorScheme="blue">
+                      {currentSearchIndex + 1}/{searchResults.length}
+                    </Badge>
+                    <IconButton
+                      size="sm"
+                      icon={<ArrowBackIcon />}
+                      onClick={handlePrevSearchResult}
+                      aria-label="Previous result"
+                    />
+                    <IconButton
+                      size="sm"
+                      icon={<ArrowBackIcon transform="rotate(180deg)" />}
+                      onClick={handleNextSearchResult}
+                      aria-label="Next result"
+                    />
+                  </>
+                )}
+                <IconButton
+                  size="sm"
+                  icon={<CloseIcon />}
+                  onClick={toggleSearch}
+                  aria-label="Close search"
+                />
+              </Flex>
+            </Box>
+          )}
 
           <Box
             display="flex"
@@ -227,18 +509,92 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   scrollbarWidth: "none",
                 }}
               >
-                <ScrollableChat messages={messages} isTyping={isTyping} />
+                <ScrollableChat
+                  messages={messages}
+                  isTyping={isTyping}
+                  onReply={handleReply}
+                  searchQuery={searchQuery}
+                />
               </div>
             )}
 
-            <FormControl mt="3" onKeyDown={(e) => sendMessage(e)} isRequired>
-              <Input
-                variant="filled"
-                bg="#E0E0E0"
-                placeholder="Enter a message.."
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-              />
+            {/* Reply Preview */}
+            {replyingTo && (
+              <Box
+                bg="gray.100"
+                p={3}
+                borderRadius="md"
+                borderLeft="4px solid #4A90E2"
+                mb={2}
+              >
+                <Flex justify="space-between" align="center">
+                  <Box>
+                    <Text fontSize="sm" fontWeight="bold" color="gray.600">
+                      Replying to {replyingTo.sender.name}
+                    </Text>
+                    <Text fontSize="sm" color="gray.700" isTruncated>
+                      {replyingTo.content.length > 80
+                        ? `${replyingTo.content.substring(0, 80)}...`
+                        : replyingTo.content
+                      }
+                    </Text>
+                  </Box>
+                  <IconButton
+                    icon={<CloseIcon />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelReply}
+                    aria-label="Cancel reply"
+                  />
+                </Flex>
+              </Box>
+            )}
+
+            <FormControl mt="3" isRequired>
+              {/* Upload progress bar */}
+              {uploadingFile && (
+                <Box mb={2}>
+                  <Text fontSize="sm" mb={1}>Uploading file...</Text>
+                  <Progress value={uploadProgress} size="sm" colorScheme="blue" />
+                </Box>
+              )}
+
+              <Flex gap={2} align="flex-end">
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  style={{ display: "none" }}
+                  accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip"
+                />
+
+                {/* File upload button */}
+                <IconButton
+                  icon={<AttachmentIcon />}
+                  onClick={() => fileInputRef.current?.click()}
+                  isDisabled={uploadingFile}
+                  aria-label="Attach file"
+                  colorScheme="blue"
+                  variant="ghost"
+                  size="md"
+                />
+
+                {/* Message editor */}
+                <Box flex={1}>
+                  <MarkdownEditor
+                    value={newMessage}
+                    onChange={(e) => typingHandler(e)}
+                    onSend={handleSendMessage}
+                    placeholder={
+                      replyingTo
+                        ? "Type your reply in markdown..."
+                        : "Type your message in markdown..."
+                    }
+                    isLoading={uploadingFile}
+                  />
+                </Box>
+              </Flex>
             </FormControl>
           </Box>
         </>

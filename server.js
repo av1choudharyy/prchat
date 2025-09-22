@@ -4,6 +4,7 @@ const path = require("path");
 
 const { connectToMongoDB } = require("./config");
 const { userRoutes, chatRoutes, messageRoutes } = require("./routes");
+const uploadRoutes = require("./routes/uploadRoutes");
 const { notFound, errorHandler } = require("./middleware");
 
 const app = express(); // Use express js in our app
@@ -11,9 +12,13 @@ app.use(express.json()); // Accept JSON data
 dotenv.config({ path: path.join(__dirname, "./.env") }); // Specify a custom path if your file containing environment variables is located elsewhere
 connectToMongoDB(); // Connect to Database
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // --------------------------DEPLOYMENT------------------------------
 
