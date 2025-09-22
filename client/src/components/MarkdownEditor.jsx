@@ -8,7 +8,8 @@ import {
   VStack,
   Text,
   useColorModeValue,
-  Link
+  Link,
+  useToast
 } from "@chakra-ui/react";
 import { ViewIcon, EditIcon } from "@chakra-ui/icons";
 import ReactMarkdown from "react-markdown";
@@ -16,13 +17,20 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { tomorrow, twilight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownToolbar from "./MarkdownToolbar";
+import { ChatState } from "../context/ChatProvider";
 
 const MarkdownEditor = ({ value, onChange, onSend, placeholder, isLoading }) => {
   // State to track if we're in "Write" mode or "Preview" mode
   const [mode, setMode] = useState("write");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Reference to the textarea element for inserting markdown at cursor position
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Get user context for authentication
+  const { user } = ChatState();
+  const toast = useToast();
 
   // Color values that adapt to light/dark mode
   const bgColor = useColorModeValue("white", "gray.800");
@@ -34,6 +42,105 @@ const MarkdownEditor = ({ value, onChange, onSend, placeholder, isLoading }) => 
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && value.trim()) {
       e.preventDefault();
       onSend();
+    }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Check file size (10MB limit for images)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum image size is 10MB",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      // Upload image to server
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.message || "Upload failed");
+      }
+
+      const uploadData = await uploadResponse.json();
+      const imageUrl = uploadData.fileData.url;
+
+      // Insert markdown image syntax with the uploaded URL
+      const imageMarkdown = `![${file.name}](${window.location.origin}${imageUrl})`;
+
+      // Insert at cursor position
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newText =
+          value.substring(0, start) +
+          imageMarkdown +
+          value.substring(end);
+
+        onChange({ target: { value: newText } });
+
+        // Set cursor after the inserted markdown
+        setTimeout(() => {
+          textarea.focus();
+          const newPosition = start + imageMarkdown.length;
+          textarea.setSelectionRange(newPosition, newPosition);
+        }, 0);
+      }
+
+      toast({
+        title: "Image uploaded",
+        description: "Image has been inserted into your message",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload image",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -62,6 +169,11 @@ const MarkdownEditor = ({ value, onChange, onSend, placeholder, isLoading }) => 
       const newPosition = start + before.length + selectedText.length;
       textarea.setSelectionRange(newPosition, newPosition);
     }, 0);
+  };
+
+  // Trigger file input when image button is clicked
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
   };
    // Use different syntax highlighting themes for light/dark mode
    const syntaxTheme = useColorModeValue(tomorrow, twilight);
@@ -244,9 +356,22 @@ const MarkdownEditor = ({ value, onChange, onSend, placeholder, isLoading }) => 
         </Button>
       </HStack>
 
+      {/* Hidden file input for image uploads */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        style={{ display: "none" }}
+        accept="image/*"
+      />
+
       {/* Markdown Toolbar - only show in write mode */}
       {mode === "write" && (
-        <MarkdownToolbar onInsert={insertMarkdown} />
+        <MarkdownToolbar
+          onInsert={insertMarkdown}
+          onImageClick={handleImageButtonClick}
+          isUploadingImage={uploadingImage}
+        />
       )}
 
       {/* Editor/Preview Area */}

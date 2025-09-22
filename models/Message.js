@@ -10,6 +10,14 @@ const MessageSchema = mongoose.Schema(
       ref: "Message",
       default: null
     },
+    mediaUrl: { type: String, default: null },
+    mediaType: {
+      type: String,
+      enum: ['image', 'video', 'file', null],
+      default: null
+    },
+    fileName: { type: String, default: null },
+    fileSize: { type: Number, default: null },
   },
   { timestamps: true }
 );

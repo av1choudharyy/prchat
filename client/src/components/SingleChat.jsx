@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowBackIcon, CloseIcon, SearchIcon } from "@chakra-ui/icons";
+import { useEffect, useState, useRef } from "react";
+import { ArrowBackIcon, CloseIcon, SearchIcon, AttachmentIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
@@ -12,6 +12,7 @@ import {
   InputGroup,
   InputLeftElement,
   Badge,
+  Progress,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 
@@ -38,6 +39,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
 
   const { user, selectedChat, setSelectedChat, notification, setNotification } =
     ChatState();
@@ -134,6 +138,104 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   const handleCancelReply = () => {
     setReplyingTo(null);
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 50MB",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      // Upload file to server
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        console.error("Upload failed:", errorData);
+        throw new Error(errorData.message || "Upload failed");
+      }
+
+      const uploadData = await uploadResponse.json();
+
+      // Send message with media
+      const messageData = {
+        content: newMessage || file.name,
+        chatId: selectedChat._id,
+        mediaUrl: uploadData.fileData.url,
+        mediaType: uploadData.fileData.mediaType,
+        fileName: uploadData.fileData.originalName,
+        fileSize: uploadData.fileData.size,
+      };
+
+      if (replyingTo) {
+        messageData.replyTo = replyingTo._id;
+      }
+
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messageData),
+      });
+
+      const data = await response.json();
+      socket.emit("new message", data);
+      setMessages([...messages, data]);
+      setNewMessage("");
+      setReplyingTo(null);
+
+      toast({
+        title: "File sent successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload file",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom-right",
+      });
+    } finally {
+      setUploadingFile(false);
+      setUploadProgress(0);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   // Search functionality
@@ -449,17 +551,50 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             )}
 
             <FormControl mt="3" isRequired>
-              <MarkdownEditor
-                value={newMessage}
-                onChange={(e) => typingHandler(e)}
-                onSend={handleSendMessage}
-                placeholder={
-                  replyingTo
-                    ? "Type your reply in markdown..."
-                    : "Type your message in markdown..."
-                }
-                isLoading={false}
-              />
+              {/* Upload progress bar */}
+              {uploadingFile && (
+                <Box mb={2}>
+                  <Text fontSize="sm" mb={1}>Uploading file...</Text>
+                  <Progress value={uploadProgress} size="sm" colorScheme="blue" />
+                </Box>
+              )}
+
+              <Flex gap={2} align="flex-end">
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  style={{ display: "none" }}
+                  accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip"
+                />
+
+                {/* File upload button */}
+                <IconButton
+                  icon={<AttachmentIcon />}
+                  onClick={() => fileInputRef.current?.click()}
+                  isDisabled={uploadingFile}
+                  aria-label="Attach file"
+                  colorScheme="blue"
+                  variant="ghost"
+                  size="md"
+                />
+
+                {/* Message editor */}
+                <Box flex={1}>
+                  <MarkdownEditor
+                    value={newMessage}
+                    onChange={(e) => typingHandler(e)}
+                    onSend={handleSendMessage}
+                    placeholder={
+                      replyingTo
+                        ? "Type your reply in markdown..."
+                        : "Type your message in markdown..."
+                    }
+                    isLoading={uploadingFile}
+                  />
+                </Box>
+              </Flex>
             </FormControl>
           </Box>
         </>

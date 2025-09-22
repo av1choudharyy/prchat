@@ -22,7 +22,7 @@ import {
 } from "react-icons/fa";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 
-const MarkdownToolbar = ({ onInsert }) => {
+const MarkdownToolbar = ({ onInsert, onImageClick, isUploadingImage }) => {
   // Toolbar actions that insert markdown syntax
   const actions = [
     {
@@ -60,12 +60,14 @@ const MarkdownToolbar = ({ onInsert }) => {
       label: "Quote",
       action: () => onInsert("\n> ", ""),
     },
-    {
-      icon: <FaImage />,
-      label: "Image",
-      action: () => onInsert("![alt text](", ")"),
-    },
   ];
+
+  // Separate image button that triggers file upload
+  const imageButton = {
+    icon: <FaImage />,
+    label: isUploadingImage ? "Uploading..." : "Upload Image",
+    action: onImageClick || (() => onInsert("![alt text](", ")")),
+  };
 
   // Header options
   const insertHeader = (level) => {
@@ -86,6 +88,17 @@ const MarkdownToolbar = ({ onInsert }) => {
             />
           </Tooltip>
         ))}
+
+        {/* Image upload button */}
+        <Tooltip label={imageButton.label} placement="top">
+          <IconButton
+            icon={imageButton.icon}
+            onClick={imageButton.action}
+            aria-label={imageButton.label}
+            isLoading={isUploadingImage}
+            colorScheme={onImageClick ? "blue" : undefined}
+          />
+        </Tooltip>
 
         {/* Header dropdown menu */}
         <Menu>

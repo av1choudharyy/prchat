@@ -4,9 +4,10 @@ const { Message, Chat } = require("../models");
 // @route           POST /api/Message/
 // @access          Protected
 const sendMessage = async (req, res) => {
-  const { content, chatId, replyTo } = req.body;
+  const { content, chatId, replyTo, mediaUrl, mediaType, fileName, fileSize } = req.body;
 
-  if (!content || !chatId) {
+  // Allow either content or media (or both)
+  if ((!content && !mediaUrl) || !chatId) {
     return res.status(400).json({
       success: false,
       statusCode: 400,
@@ -18,13 +19,21 @@ const sendMessage = async (req, res) => {
     // Create message object
     const messageData = {
       sender: req.user._id, // Logged in user id,
-      content,
+      content: content || '',
       chat: chatId,
     };
 
     // Add reply reference if provided
     if (replyTo) {
       messageData.replyTo = replyTo;
+    }
+
+    // Add media information if provided
+    if (mediaUrl) {
+      messageData.mediaUrl = mediaUrl;
+      messageData.mediaType = mediaType;
+      messageData.fileName = fileName;
+      messageData.fileSize = fileSize;
     }
 
     // Create a new message

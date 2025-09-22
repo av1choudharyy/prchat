@@ -13,6 +13,7 @@ import {
 import { ChatState } from "../context/ChatProvider";
 import typingAnimation from "../animations/typing.json";
 import MarkdownMessage from "./MarkdownMessage";
+import MediaPreview from "./MediaPreview";
 
 const ScrollableChat = ({ messages, isTyping, onReply, searchQuery }) => {
   const { user } = ChatState();
@@ -104,10 +105,23 @@ const ScrollableChat = ({ messages, isTyping, onReply, searchQuery }) => {
                   </Box>
                 )}
 
-                <MarkdownMessage
-                  content={message.content}
-                  timestamp={message.createdAt}
-                />
+                {/* Display media if present */}
+                {message.mediaUrl && (
+                  <MediaPreview
+                    mediaUrl={message.mediaUrl}
+                    mediaType={message.mediaType}
+                    fileName={message.fileName}
+                    fileSize={message.fileSize}
+                  />
+                )}
+
+                {/* Display text content if present */}
+                {message.content && (
+                  <MarkdownMessage
+                    content={message.content}
+                    timestamp={message.createdAt}
+                  />
+                )}
 
                 {/* Reply Button */}
                 <IconButton
