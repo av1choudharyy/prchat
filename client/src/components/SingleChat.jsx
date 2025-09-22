@@ -1,11 +1,11 @@
 // client/src/components/SingleChat.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowBackIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
 import {
   Box,
   FormControl,
   IconButton,
-  Input,
+  Textarea,
   Spinner,
   Text,
   useToast,
@@ -14,26 +14,22 @@ import {
   Button,
   useColorMode,
   useColorModeValue,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
 } from "@chakra-ui/react";
-import { FiSend, FiTrash2, FiCopy, FiShare2, FiCornerDownLeft } from "react-icons/fi";
-import { FaThumbtack } from "react-icons/fa";
-
+import { FiCopy, FiCornerDownLeft, FiCornerDownRight, FiSend } from "react-icons/fi";
 import io from "socket.io-client";
+import { FaThumbtack } from "react-icons/fa";
 import { ChatState } from "../context/ChatProvider";
 import { getSender, getSenderFull } from "../config/ChatLogics";
 import ProfileModal from "./miscellaneous/ProfileModal";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
 import ScrollableChat from "./ScrollableChat";
+import "../App.css";
 
 const ENDPOINT = "http://localhost:5000";
 let socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
-  // state
+  // local state
   const [messages, setMessages] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -45,23 +41,35 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [replyTo, setReplyTo] = useState(null);
   const [selectedMessages, setSelectedMessages] = useState([]);
 
+  // preview / editor state
+  const [mode, setMode] = useState("write"); // "write" | "preview"
+  const textareaRef = useRef(null);
+
   const { user, selectedChat, setSelectedChat, notification, setNotification } = ChatState();
   const toast = useToast();
 
-  // color tokens (top-level hooks only)
+  // ----------------------------
+  // Chakra color hooks (TOP-LEVEL: do not move inside any conditional)
+  // ----------------------------
   const { colorMode, toggleColorMode } = useColorMode();
-  const inputBg = useColorModeValue("white", "gray.800");
-  const chatAreaBg = useColorModeValue("gray.50", "gray.900");
-  const headerBg = useColorModeValue("white", "gray.900");
+
+  const inputBg = useColorModeValue("#fff", "#1a202c");
+  const chatAreaBg = useColorModeValue("#F7F7F8", "#071124");
+  const headerBg = useColorModeValue("#ffffff", "#071124");
   const headerText = useColorModeValue("black", "white");
   const replyPreviewBg = useColorModeValue("gray.100", "gray.700");
   const replyPreviewText = useColorModeValue("black", "white");
-  const containerBg = useColorModeValue("transparent", "transparent");
-  const actionbarBg = useColorModeValue("gray.100", "gray.800");
-  const actionbarBorder = useColorModeValue("gray.200", "gray.700");
-  const actionbarText = useColorModeValue("gray.800", "gray.100");
+  const containerBg = useColorModeValue("#f2f2f2", "#071124");
 
-  // socket + events
+  const actionBarBg = useColorModeValue("gray.100", "gray.800");
+  const actionBarBorder = useColorModeValue("gray.200", "gray.700");
+  const actionBarText = useColorModeValue("gray.800", "gray.100");
+  const dividerBorder = useColorModeValue("gray.200", "gray.700");
+  const previewBg = useColorModeValue("white", "gray.800");
+
+  // ----------------------------
+  // Socket setup & listeners
+  // ----------------------------
   useEffect(() => {
     if (!user) return;
     socket = io(ENDPOINT);
@@ -88,7 +96,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     });
 
     socket.on("message recieved", (newMessageRecieved) => {
-      const incomingChatId = newMessageRecieved.chat && newMessageRecieved.chat[0] && newMessageRecieved.chat[0]._id;
+      // defensive read of chat id (server may return array)
+      const incomingChatId = newMessageRecieved?.chat && newMessageRecieved.chat[0] && newMessageRecieved.chat[0]._id;
       if (!selectedChatCompare || selectedChatCompare._id !== incomingChatId) {
         if (!notification.includes(newMessageRecieved)) {
           setNotification([newMessageRecieved, ...notification]);
@@ -98,6 +107,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         const deliveredMsg = { ...newMessageRecieved, delivered: true, seenBy: [] };
         setMessages((prev) => [...prev, deliveredMsg]);
 
+        // best-effort acks to server
         try {
           socket.emit("message_delivered", { messageId: deliveredMsg._id, chatId: selectedChat._id });
         } catch {}
@@ -117,55 +127,63 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     // eslint-disable-next-line
   }, [user]);
 
+  // fetch messages when selected chat changes
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!selectedChat) return;
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/message/${selectedChat._id}`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${user.token}` },
-        });
-        const data = await res.json();
-
-        const enriched = data.map((m) => {
-          if (m.replyTo && typeof m.replyTo === "string") {
-            const original = data.find((x) => x._id === m.replyTo);
-            if (original) m.replyTo = original;
-          }
-          m.seenBy = m.seenBy ?? [];
-          m.delivered = m.delivered ?? false;
-          return m;
-        });
-
-        setMessages(enriched);
-        setLoading(false);
-        socket?.emit("join chat", selectedChat._id);
-
-        // mark seen
-        enriched.forEach((m) => {
-          if (m.sender && m.sender._id !== user._id) {
-            try {
-              socket.emit("message_seen", { messageId: m._id, chatId: selectedChat._id, userId: user._id });
-            } catch {}
-          }
-        });
-      } catch (err) {
-        setLoading(false);
-        toast({
-          title: "Error Occured!",
-          description: "Failed to load messages",
-          status: "error",
-          duration: 4000,
-          isClosable: true,
-        });
-      }
-    };
-
     fetchMessages();
     selectedChatCompare = selectedChat;
     // eslint-disable-next-line
   }, [selectedChat]);
+
+  // ----------------------------
+  // Data fetching & helpers
+  // ----------------------------
+  const fetchMessages = async () => {
+    if (!selectedChat) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/message/${selectedChat._id}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      const data = await res.json();
+
+      // materialize replyTo objects and set defaults
+      const enriched = data.map((m) => {
+        if (m.replyTo && typeof m.replyTo === "string") {
+          const original = data.find((x) => x._id === m.replyTo);
+          if (original) m.replyTo = original;
+        }
+        m.seenBy = m.seenBy ?? [];
+        m.delivered = m.delivered ?? false;
+        return m;
+      });
+
+      setMessages(enriched);
+      setLoading(false);
+      socket?.emit("join chat", selectedChat._id);
+      markMessagesSeen(enriched);
+    } catch (err) {
+      setLoading(false);
+      toast({
+        title: "Error Occured!",
+        description: "Failed to load messages",
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const markMessagesSeen = (msgs) => {
+    if (!msgs || !Array.isArray(msgs)) return;
+    msgs.forEach((m) => {
+      if (m.sender && m.sender._id !== user._id) {
+        try {
+          socket.emit("message_seen", { messageId: m._id, chatId: selectedChat._id, userId: user._id });
+        } catch {}
+      }
+    });
+  };
 
   // selection toggles
   const handleToggleSelect = (msg) => {
@@ -175,14 +193,16 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   };
   const handleClearSelection = () => setSelectedMessages([]);
 
-  // delete handlers
+  // delete
   const handleDeleteForMe = (msgs) => {
     setMessages((prev) => prev.filter((m) => !msgs.some((s) => s._id === m._id)));
     handleClearSelection();
     toast({ title: "Deleted for me", status: "info", duration: 1600 });
   };
   const handleDeleteForEveryone = (msgs) => {
-    setMessages((prev) => prev.map((m) => (msgs.some((s) => s._id === m._id) ? { ...m, deletedForEveryone: true, content: "" } : m)));
+    setMessages((prev) =>
+      prev.map((m) => (msgs.some((s) => s._id === m._id) ? { ...m, deletedForEveryone: true, content: "" } : m))
+    );
     msgs.forEach((s) => {
       try {
         socket.emit("message_deleted_for_everyone", { messageId: s._id, chatId: selectedChat._id });
@@ -197,11 +217,12 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     if (!msg) return;
     setReplyTo(msg);
     handleClearSelection();
-    document.getElementById("prchat-input")?.focus();
+    setMode("write");
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
   const handleCancelReply = () => setReplyTo(null);
 
-  // copy/forward/pin
+  // copy & forward
   const handleCopy = async (msgs) => {
     const text = msgs.map((m) => m.content).join("\n");
     try {
@@ -216,6 +237,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     toast({ title: "Forward clicked", description: "Forward modal not implemented", status: "info" });
     handleClearSelection();
   };
+
+  // pin toggle
   const handlePinToggle = (msgs) => {
     let newPinned = [...pinnedMessages];
     msgs.forEach((msg) => {
@@ -239,7 +262,8 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
   // send
   const sendMessage = async () => {
-    if (!newMessage?.trim()) return;
+    const trimmed = newMessage?.trim();
+    if (!trimmed) return;
     try {
       socket.emit("stop typing", selectedChat._id);
     } catch {}
@@ -267,15 +291,18 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }
   };
 
+  // typing handler + ctrl/cmd+enter to send
   const typingHandler = (e) => {
     setNewMessage(e.target.value);
     if (!socketConnected) return;
+
     if (!typing) {
       setTyping(true);
       try {
         socket.emit("typing", selectedChat._id);
       } catch {}
     }
+
     const lastTypingTime = new Date().getTime();
     setTimeout(() => {
       const now = new Date().getTime();
@@ -288,9 +315,17 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, 3000);
   };
 
+  const onEditorKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // ---------- JSX ----------
   return (
     <Box height="100%" display="flex" flexDirection="column" bg={containerBg}>
-      {/* Header (fixed) */}
+      {/* Header */}
       <Box
         bg={headerBg}
         color={headerText}
@@ -300,7 +335,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
         alignItems="center"
         justifyContent="space-between"
         borderBottom="1px solid"
-        borderColor={useColorModeValue("gray.200", "gray.700")}
+        borderColor={dividerBorder}
         flexShrink={0}
       >
         <HStack spacing={3}>
@@ -324,7 +359,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
 
         <HStack spacing={2}>
           {selectedChat?.isGroupChat ? (
-            <UpdateGroupChatModal fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} fetchMessages={() => {}} />
+            <UpdateGroupChatModal fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} fetchMessages={fetchMessages} />
           ) : (
             <ProfileModal user={getSenderFull(user, selectedChat?.users)} />
           )}
@@ -335,40 +370,34 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       {/* Action bar when messages selected */}
       {selectedMessages.length > 0 && (
         <Box
-          bg={actionbarBg}
+          bg={actionBarBg}
           borderBottom="1px solid"
-          borderColor={actionbarBorder}
+          borderColor={actionBarBorder}
           px={3}
           py={2}
           display="flex"
           alignItems="center"
           justifyContent="space-between"
           flexShrink={0}
-          color={actionbarText}
+          color={actionBarText}
         >
-          {/* left: selected count */}
-          <Box>
-            <Text fontWeight="semibold">{selectedMessages.length} selected</Text>
-          </Box>
-
-          {/* right: all actions (reply, forward, copy, pin, delete) */}
           <HStack spacing={2}>
+            <Text fontWeight="semibold">{selectedMessages.length} selected</Text>
             <IconButton aria-label="Reply" icon={<FiCornerDownLeft />} size="sm" onClick={() => handleReply(selectedMessages[selectedMessages.length - 1])} />
-            <IconButton aria-label="Forward" icon={<FiShare2 />} size="sm" onClick={() => handleForward(selectedMessages)} />
+            <IconButton aria-label="Forward" icon={<FiCornerDownRight />} size="sm" onClick={() => handleForward(selectedMessages)} />
             <IconButton aria-label="Copy" icon={<FiCopy />} size="sm" onClick={() => handleCopy(selectedMessages)} />
             <IconButton aria-label="Pin" icon={<FaThumbtack />} size="sm" onClick={() => handlePinToggle(selectedMessages)} />
-            <Menu>
-              <MenuButton as={IconButton} aria-label="Delete" icon={<FiTrash2 />} size="sm" />
-              <MenuList>
-                <MenuItem onClick={() => handleDeleteForMe(selectedMessages)}>Delete for me</MenuItem>
-                <MenuItem onClick={() => handleDeleteForEveryone(selectedMessages)}>Delete for everyone</MenuItem>
-              </MenuList>
-            </Menu>
+          </HStack>
+
+          <HStack spacing={2}>
+            <Button size="sm" colorScheme="red" onClick={() => handleDeleteForEveryone(selectedMessages)}>
+              Delete
+            </Button>
           </HStack>
         </Box>
       )}
 
-      {/* Chat area (header + pinned strip + messages scroll + input) */}
+      {/* Chat area */}
       <Box flex="1" display="flex" flexDirection="column" p={4} overflow="hidden" bg={chatAreaBg}>
         {loading ? (
           <Spinner size="xl" w="20" h="20" alignSelf="center" margin="auto" />
@@ -385,7 +414,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           </Box>
         )}
 
-        {/* Reply preview (fixed above input) */}
+        {/* Reply preview */}
         {replyTo && (
           <Box bg={replyPreviewBg} p={2} borderRadius="md" my={2} color={replyPreviewText}>
             <HStack justify="space-between" alignItems="center">
@@ -402,15 +431,80 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           </Box>
         )}
 
-        {/* Input area (fixed) */}
-        <FormControl mt="2" onKeyDown={(e) => e.key === "Enter" && sendMessage()}>
-          <HStack spacing={2}>
-            <Input id="prchat-input" variant="filled" bg={inputBg} placeholder="Enter a message.." value={newMessage} onChange={typingHandler} />
-            <Button colorScheme="green" onClick={sendMessage} aria-label="Send">
+        {/* Input region */}
+        <Box mt={2} borderTop="1px solid" borderColor={dividerBorder} pt={3} flexShrink={0}>
+          {/* Write area */}
+          {mode === "write" ? (
+            <FormControl>
+              <Textarea
+                id="prchat-input"
+                ref={textareaRef}
+                value={newMessage}
+                onChange={typingHandler}
+                onKeyDown={onEditorKeyDown}
+                placeholder="Write a markdown message. Use Ctrl/Cmd+Enter to send."
+                minH="48px"
+                maxH="300px"
+                resize="auto"
+                bg={inputBg}
+                borderRadius="md"
+              />
+            </FormControl>
+          ) : (
+            <Box p={3} borderRadius="md" bg={previewBg}>
+              <ScrollableChat
+                messages={[
+                  {
+                    _id: "preview",
+                    content: newMessage || "*Nothing to preview*",
+                    sender: user,
+                    createdAt: new Date().toISOString(),
+                  },
+                ]}
+                pinnedMessages={[]}
+                isTyping={false}
+                selectedMessages={[]}
+                onToggleSelect={() => {}}
+                onUnpin={() => {}}
+                previewMode
+              />
+            </Box>
+          )}
+
+          {/* Single-row controls: Close | Write/Preview (center) | Send */}
+          <HStack mt={3} width="100%" alignItems="center" justifyContent="space-between">
+            {/* Left: Close (clears input + cancels reply) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setNewMessage("");
+                setReplyTo(null);
+                setMode("write");
+              }}
+            >
+              Close
+            </Button>
+
+            {/* Center: Write / Preview toggles */}
+            <HStack spacing={4}>
+              <Button size="sm" variant={mode === "write" ? "solid" : "ghost"} onClick={() => setMode("write")}>
+                Write
+              </Button>
+              <Button size="sm" variant={mode === "preview" ? "solid" : "ghost"} onClick={() => setMode("preview")}>
+                Preview
+              </Button>
+            </HStack>
+
+            {/* Right: Send */}
+            <Button colorScheme="green" onClick={sendMessage} size="sm" isDisabled={!newMessage.trim()}>
               <FiSend />
+              <Box as="span" ml={2} display={{ base: "none", md: "inline" }}>
+                Send
+              </Box>
             </Button>
           </HStack>
-        </FormControl>
+        </Box>
       </Box>
     </Box>
   );
