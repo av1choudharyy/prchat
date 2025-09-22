@@ -15,7 +15,7 @@ import {
   useColorMode,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { FiCopy, FiCornerDownLeft, FiCornerDownRight, FiSend, FiPaperclip } from "react-icons/fi";
+import { FiCopy, FiCornerDownLeft, FiCornerUpRight, FiSend, FiPaperclip } from "react-icons/fi";
 import io from "socket.io-client";
 import { FaThumbtack, FaTrash } from "react-icons/fa";
 import { FaSmile } from "react-icons/fa";
@@ -405,7 +405,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           <HStack spacing={2}>
             <Text fontWeight="semibold">{selectedMessages.length} selected</Text>
             <IconButton aria-label="Reply" icon={<FiCornerDownLeft />} size="sm" onClick={() => handleReply(selectedMessages[selectedMessages.length - 1])} />
-            <IconButton aria-label="Forward" icon={<FiCornerDownRight />} size="sm" onClick={() => handleForward(selectedMessages)} />
+            <IconButton aria-label="Forward" icon={<FiCornerUpRight />} size="sm" onClick={() => handleForward(selectedMessages)} />
             <IconButton aria-label="Copy" icon={<FiCopy />} size="sm" onClick={() => handleCopy(selectedMessages)} />
             <IconButton aria-label="Pin" icon={<FaThumbtack />} size="sm" onClick={() => handlePinToggle(selectedMessages)} />
             <IconButton aria-label="Delete" icon={<FaTrash />} size="sm" colorScheme="red" onClick={() => handleDeleteForEveryone(selectedMessages)} />
