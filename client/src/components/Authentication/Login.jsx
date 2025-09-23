@@ -7,9 +7,13 @@ import {
   InputRightElement,
   Stack,
   useToast,
+  Box,
+  Image,
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ChatState } from "../../context/ChatProvider"; // ✅ context
+
 
 const Login = () => {
   const [show, setShow] = useState(false);
@@ -17,6 +21,7 @@ const Login = () => {
 
   const toast = useToast();
   const navigate = useNavigate();
+  const { setUser } = ChatState(); // ✅ get setter
 
   const [credentials, setCredentials] = useState({
     email: "",
@@ -30,10 +35,9 @@ const Login = () => {
   const submitHandler = async () => {
     setLoading(true);
 
-    // If email or password is missing
     if (!credentials.email || !credentials.password) {
       toast({
-        title: "Please Fill all the Feilds",
+        title: "Please Fill all the Fields",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -47,9 +51,7 @@ const Login = () => {
     try {
       const response = await fetch("/api/user/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: credentials.email,
           password: credentials.password,
@@ -68,6 +70,7 @@ const Login = () => {
 
       if (data.success) {
         localStorage.setItem("userInfo", JSON.stringify(data));
+        setUser(data);
         setLoading(false);
         navigate("/chats");
       } else {
@@ -75,7 +78,7 @@ const Login = () => {
       }
     } catch (error) {
       setLoading(false);
-      return toast({
+      toast({
         title: "Internal server error",
         status: "error",
         duration: 5000,
@@ -87,23 +90,40 @@ const Login = () => {
   };
 
   return (
-    <Stack spacing="6">
-      <Stack spacing="5">
+    <Stack spacing="6" align="center">
+      {/* Logo */}
+      
+
+      <Stack spacing="5" w="100%">
         <FormControl isRequired>
-          <FormLabel htmlFor="email">Email</FormLabel>
+          <FormLabel htmlFor="email" color="black">
+            Email
+          </FormLabel>
           <Input
             type="email"
             name="email"
             value={credentials.email}
             placeholder="Enter Your Email"
-            onChange={(e) => handleCredentials(e)}
+            onChange={handleCredentials}
+            variant="outline"
+            borderWidth="1px"
+            borderColor="gray.300"
+            bg="white"
+            color="black"
+            _hover={{ borderColor: "gray.400" }}
+            _focus={{
+              borderColor: "blue.400",
+              boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+            }}
           />
         </FormControl>
       </Stack>
 
-      <Stack spacing="5">
+      <Stack spacing="5" w="100%">
         <FormControl isRequired>
-          <FormLabel htmlFor="password">Password</FormLabel>
+          <FormLabel htmlFor="password" color="black">
+            Password
+          </FormLabel>
           <InputGroup>
             <InputRightElement w="4.5rem">
               <Button h="1.75rem" size="sm" onClick={() => setShow(!show)}>
@@ -115,7 +135,17 @@ const Login = () => {
               name="password"
               value={credentials.password}
               placeholder="Password"
-              onChange={(e) => handleCredentials(e)}
+              onChange={handleCredentials}
+              variant="outline"
+              borderWidth="1px"
+              borderColor="gray.300"
+              bg="white"
+              color="black"
+              _hover={{ borderColor: "gray.400" }}
+              _focus={{
+                borderColor: "blue.400",
+                boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)",
+              }}
             />
           </InputGroup>
         </FormControl>
@@ -124,25 +154,28 @@ const Login = () => {
       <Button
         colorScheme="blue"
         width="100%"
-        style={{ marginTop: 15 }}
+        mt={4}
         onClick={submitHandler}
         isLoading={loading}
       >
         Login
       </Button>
 
+      {/* Guest autofill */}
       <Button
         variant="solid"
         colorScheme="red"
         width="100%"
         onClick={() => {
-          setCredentials({ email: "guest@example.com", password: "12345678" });
+          setCredentials({ email: "guest1@example.com", password: "12345" });
         }}
+        isDisabled={loading}
       >
         <i
           className="fas fa-user-alt"
           style={{ fontSize: "15px", marginRight: 8 }}
-        /> Get Guest User Credentials
+        />{" "}
+        Get Guest User Credentials
       </Button>
     </Stack>
   );

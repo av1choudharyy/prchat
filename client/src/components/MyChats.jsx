@@ -1,12 +1,6 @@
+// src/components/MyChats.jsx
 import { useEffect, useState } from "react";
-import {
-  Box,
-  Button,
-  Stack,
-  Text,
-  useDisclosure,
-  useToast,
-} from "@chakra-ui/react";
+import { Box, Button, Stack, Text, Heading } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 
 import { ChatState } from "../context/ChatProvider";
@@ -18,8 +12,6 @@ const MyChats = ({ fetchAgain }) => {
   const [loggedUser, setLoggedUser] = useState();
 
   const { selectedChat, setSelectedChat, user, chats, setChats } = ChatState();
-  const toast = useToast();
-  const { onClose } = useDisclosure();
 
   const fetchChats = async () => {
     try {
@@ -30,88 +22,46 @@ const MyChats = ({ fetchAgain }) => {
         },
       });
       const data = await response.json();
-
       setChats(data);
-      onClose(); // Close the side drawer
     } catch (error) {
-      return toast({
-        title: "Error Occured!",
-        description: "Failed to Load the Search Results",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "bottom-left",
-        variant: "solid",
-      });
+      console.error("Failed to load chats", error);
     }
   };
 
   useEffect(() => {
     setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
-    fetchChats();
+    if (user) fetchChats();
     // eslint-disable-next-line
-  }, [fetchAgain]);
+  }, [fetchAgain, user]);
 
   return (
-    <Box
-      display={{ base: selectedChat ? "none" : "flex", md: "flex" }}
-      flexDir="column"
-      alignItems="center"
-      p={3}
-      bg="white"
-      w={{ base: "100%", md: "31%" }}
-      borderRadius="lg"
-      borderWidth="1px"
-    >
-      <Box
-        pb={3}
-        px={3}
-        fontSize={{ base: "28px", md: "30px" }}
-        fontFamily="Work sans"
-        display="flex"
-        w="100%"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        My Chats
+    <Box className="left-column" w="100%" maxW="320px">
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Heading as="h3" className="my-chats-header">
+          My Chats
+        </Heading>
+
         <GroupChatModal>
-          <Button
-            display="flex"
-            fontSize={{ base: "17px", md: "10px", lg: "17px" }}
-            rightIcon={<AddIcon />}
-          >
+          <Button size="sm" rightIcon={<AddIcon />} colorScheme="blue" variant="solid">
             New Group Chat
           </Button>
         </GroupChatModal>
       </Box>
 
-      <Box
-        display="flex"
-        flexDir="column"
-        p={3}
-        bg="#F8F8F8"
-        w="100%"
-        h="100%"
-        borderRadius="lg"
-        overflowY="hidden"
-      >
+      {/* Scrollable list */}
+      <Box className="my-chats-list">
         {chats ? (
-          <Stack overflowY="scroll">
+          <Stack spacing={2}>
             {chats.map((chat) => (
               <Box
+                key={chat._id}
                 onClick={() => setSelectedChat(chat)}
                 cursor="pointer"
-                bg={selectedChat === chat ? "#38B2AC" : "#E8E8E8"}
-                color={selectedChat === chat ? "white" : "black"}
-                px={3}
-                py={2}
-                borderRadius="lg"
-                key={chat._id}
+                className={`my-chat-item ${selectedChat === chat ? "active" : ""}`}
               >
-                <Text>
-                  {!chat.isGroupChat
-                    ? getSender(loggedUser, chat.users)
-                    : chat.chatName}
+                <Text fontWeight="600" noOfLines={1}>
+                  {!chat.isGroupChat ? getSender(loggedUser, chat.users) : chat.chatName}
                 </Text>
               </Box>
             ))}

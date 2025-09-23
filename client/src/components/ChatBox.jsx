@@ -1,5 +1,5 @@
+// src/components/ChatBox.jsx
 import { Box } from "@chakra-ui/react";
-
 import { ChatState } from "../context/ChatProvider";
 import SingleChat from "./SingleChat";
 
@@ -8,15 +8,25 @@ const ChatBox = ({ fetchAgain, setFetchAgain }) => {
   return (
     <Box
       display={{ base: selectedChat ? "flex" : "none", md: "flex" }}
-      alignItems="center"
+      alignItems="stretch"
       flexDir="column"
       p={3}
       bg="white"
-      w={{ base: "100%", md: "68%" }}
+      w="100%"
+      h="100%"
       borderRadius="lg"
       borderWidth="1px"
+      minHeight={0}   /* allow child to shrink/scroll */
     >
-      <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+      {selectedChat ? (
+        <Box className="chat-card" w="100%" h="100%">
+          <SingleChat fetchAgain={fetchAgain} setFetchAgain={setFetchAgain} />
+        </Box>
+      ) : (
+        <Box className="empty-chat-message" w="100%" h="100%">
+          Click on a user to start chatting
+        </Box>
+      )}
     </Box>
   );
 };

@@ -20,7 +20,7 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { BellIcon, ChevronDownIcon } from "@chakra-ui/icons";
+import { BellIcon, ChevronDownIcon, SearchIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -45,6 +45,7 @@ const SideDrawer = () => {
     notification,
     setNotification,
   } = ChatState();
+
   const navigate = useNavigate();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
@@ -57,7 +58,7 @@ const SideDrawer = () => {
   const handleSearch = async () => {
     if (!search) {
       return toast({
-        title: "Please Enter something in search",
+        title: "Please enter something in search",
         status: "warning",
         duration: 5000,
         isClosable: true,
@@ -83,7 +84,7 @@ const SideDrawer = () => {
       setLoading(false);
       return toast({
         title: "Error Occured!",
-        description: "Failed to Load the Search Results",
+        description: "Failed to load search results",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -103,18 +104,15 @@ const SideDrawer = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
-        body: JSON.stringify({
-          userId,
-        }),
+        body: JSON.stringify({ userId }),
       });
       const data = await response.json();
 
-      // If the chat already inside 'chat' state, append it
       if (!chats.find((c) => c._id === data._id)) setChats([data, ...chats]);
 
       setSelectedChat(data);
       setLoadingChat(false);
-      onClose(); // Close the side drawer
+      onClose();
     } catch (error) {
       setLoadingChat(false);
       return toast({
@@ -131,66 +129,84 @@ const SideDrawer = () => {
 
   return (
     <>
-      {/* Chat Page UI */}
+      {/* Top Navbar */}
       <Box
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
         w="100%"
-        p="5px 10px 5px 10px"
+        p="5px 10px"
         borderWidth="5px"
+        zIndex="1"
       >
-        {/* Search User Section */}
+        {/* Search User Button */}
         <Tooltip label="Search users to chat" hasArrow placement="bottom-end">
-          <Button variant="ghost" onClick={onOpen}>
-            <i className="fas fa-search" />
-            <Text display={{ base: "none", md: "flex" }} paddingX="2.5">
-              Search User
-            </Text>
+          <Button
+            variant="ghost"
+            onClick={onOpen}
+            flexDir="column"
+            alignItems="center"
+            justifyContent="center"
+          >
+            <SearchIcon boxSize={6} mb={1} color="black" />
+            <Text fontSize="sm">Search</Text>
           </Button>
         </Tooltip>
 
-        {/* App Name Section */}
-        <Text fontSize="2xl" fontFamily="Work sans">
-          PRChat
+        {/* App Name */}
+        <Text
+          fontSize="3xl"
+          fontWeight="bold"
+          fontFamily="Work Sans"
+          color="darkblue"
+          textShadow="2px 2px 4px rgba(0,0,0,0.3)"
+        >
+          PR CHAT
         </Text>
 
-        {/* User Profile and Bell Icon Section */}
-        <div>
+        {/* Notification + Profile */}
+        <Box display="flex" alignItems="center" gap="15px">
+          {/* Notification Bell */}
           <Menu>
-            <MenuButton p="1" className="notification-badge-container">
-              <BellIcon fontSize="2xl" m="1" />
-
+            <MenuButton p={1} position="relative">
+              <BellIcon fontSize="2xl" m={1} color="black" />
               {notification.length > 0 && (
-                <span className="notification-badge">
+                <Box
+                  as="span"
+                  position="absolute"
+                  top="0"
+                  right="0"
+                  bg="red.500"
+                  color="white"
+                  borderRadius="full"
+                  px="2"
+                  fontSize="xs"
+                >
                   {notification.length > 9 ? "9+" : notification.length}
-                </span>
+                </Box>
               )}
             </MenuButton>
 
             <MenuList>
-              {!notification.length && <Text pl="2">No New Messages</Text>}
+              {!notification.length && <MenuItem>No new notifications</MenuItem>}
               {notification.map((notif) => (
                 <MenuItem
                   key={notif._id}
                   onClick={() => {
-                    setSelectedChat(notif.chat[0]);
+                    setSelectedChat(notif.chat);
                     setNotification(notification.filter((n) => n !== notif));
+                    onClose();
                   }}
                 >
                   {notif.chat.isGroupChat
-                    ? `New Message in ${notif.chat[0].chatName}`
-                    : `New Message from ${getSender(
-                        user,
-                        notif.chat[0].users
-                      )}`}
-                  {/* Change chat[0] to chat from server side */}
+                    ? `New message in ${notif.chat.chatName}`
+                    : `New message from ${getSender(user, notif.chat.users)}`}
                 </MenuItem>
               ))}
             </MenuList>
           </Menu>
 
+          {/* Profile Menu */}
           <Menu>
             <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
               <Avatar
@@ -205,25 +221,36 @@ const SideDrawer = () => {
               <ProfileModal user={user}>
                 <MenuItem>My Profile</MenuItem>
               </ProfileModal>
-
               <MenuDivider />
               <MenuItem onClick={logoutHandler}>Logout</MenuItem>
             </MenuList>
           </Menu>
-        </div>
+        </Box>
       </Box>
 
-      <Drawer placement="left" isOpen={isOpen} onClose={onClose}>
-        <DrawerOverlay />
-        <DrawerContent>
+      {/* Drawer (Search Users) */}
+      <Drawer
+        placement="left"
+        isOpen={isOpen}
+        onClose={onClose}
+        closeOnOverlayClick
+        size="sm"
+      >
+        {/* Overlay below */}
+        <DrawerOverlay zIndex={1300} />
+
+        {/* Content above */}
+        <DrawerContent zIndex={1500} bg="white" color="black">
           <DrawerCloseButton />
-          <DrawerHeader>Search Users</DrawerHeader>
+          <DrawerHeader borderBottomWidth="1px" fontWeight="bold">
+            Search Users
+          </DrawerHeader>
 
           <DrawerBody>
-            {/* Search User */}
             <Box display="flex" pb="2">
               <Input
-                placeholder="Search by name or email"
+                placeholder="Search users to chat"
+                _placeholder={{ color: "gray.500", fontStyle: "italic" }}
                 mr="2"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -231,21 +258,19 @@ const SideDrawer = () => {
               <Button onClick={handleSearch}>Go</Button>
             </Box>
 
-            {/* Polulate Search Results */}
             {loading ? (
               <ChatLoading />
             ) : (
-              searchResult?.map((user) => (
+              searchResult?.map((u) => (
                 <UserListItem
-                  key={user._id}
-                  user={user}
-                  handleFunction={() => accessChat(user._id)}
+                  key={u._id}
+                  user={u}
+                  handleFunction={() => accessChat(u._id)}
                 />
               ))
             )}
 
-            {/* if the chat has been created, don't show the loading */}
-            {loadingChat && <Spinner ml="auto" d="flex" />}
+            {loadingChat && <Spinner ml="auto" display="flex" />}
           </DrawerBody>
         </DrawerContent>
       </Drawer>

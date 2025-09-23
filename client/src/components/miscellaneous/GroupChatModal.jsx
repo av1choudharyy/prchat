@@ -147,16 +147,20 @@ const GroupChatModal = ({ children }) => {
             justifyContent="center"
             fontSize="35px"
             fontFamily="Work sans"
+            color="black"
           >
             Create Group Chat
           </ModalHeader>
-          <ModalCloseButton />
+          <ModalCloseButton color="black" />
           <ModalBody display="flex" flexDir="column" alignItems="center">
             <FormControl>
               <Input
                 placeholder="Chat Name"
                 mb={3}
                 onChange={(e) => setGroupChatName(e.target.value)}
+                bg="white"
+                color="black"
+                border="1px solid #ccc"
               />
             </FormControl>
             <FormControl>
@@ -164,6 +168,9 @@ const GroupChatModal = ({ children }) => {
                 placeholder="Add Users eg: Rohit, Piyush, Aman"
                 mb={3}
                 onChange={(e) => handleSearch(e.target.value)}
+                bg="white"
+                color="black"
+                border="1px solid #ccc"
               />
             </FormControl>
 
@@ -179,7 +186,7 @@ const GroupChatModal = ({ children }) => {
             </Box>
 
             {loading ? (
-              <div>Loading</div>
+              <div style={{ color: "black" }}>Loading...</div>
             ) : (
               searchResults?.map((user) => (
                 <UserListItem

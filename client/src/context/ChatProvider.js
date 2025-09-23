@@ -1,26 +1,63 @@
-import { useContext, useEffect, useState } from "react";
-import { createContext } from "react";
-import { useNavigate } from "react-router-dom";
+// src/context/ChatProvider.jsx
+import { createContext, useContext, useEffect, useState } from "react";
 
 const ChatContext = createContext();
 
 const ChatProvider = ({ children }) => {
-  const [user, setUser] = useState(); // If 'userInfo' is available, else set '{}'
+  const [user, setUser] = useState(null);
   const [selectedChat, setSelectedChat] = useState();
   const [chats, setChats] = useState([]);
   const [notification, setNotification] = useState([]);
+  const [loadingUser, setLoadingUser] = useState(true); // hydrate flag
 
-  const navigate = useNavigate();
+  // NEW: unread counts map { [chatId]: number }
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   useEffect(() => {
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-    setUser(userInfo);
-
-    if (!userInfo) {
-      navigate("/");
+    try {
+      const info = JSON.parse(localStorage.getItem("userInfo"));
+      if (info) setUser(info);
+    } catch {
+      // ignore parse errors
+    } finally {
+      setLoadingUser(false);
     }
-    // eslint-disable-next-line
-  }, [navigate]);
+  }, []);
+
+  // Increment unread for a chatId by 1
+  const incrementUnread = (chatId) => {
+    if (!chatId) return;
+    setUnreadCounts((prev) => {
+      const next = { ...prev };
+      next[chatId] = (next[chatId] || 0) + 1;
+      return next;
+    });
+  };
+
+  // Clear unread for a chatId (when user opens that chat)
+  const clearUnread = (chatId) => {
+    if (!chatId) return;
+    setUnreadCounts((prev) => {
+      if (!prev[chatId]) return prev;
+      const next = { ...prev };
+      delete next[chatId];
+      return next;
+    });
+  };
+
+  // Optional: set unread for chat (e.g., reset or set specific number)
+  const setUnreadForChat = (chatId, count) => {
+    if (!chatId) return;
+    setUnreadCounts((prev) => {
+      const next = { ...prev };
+      if (count > 0) next[chatId] = count;
+      else delete next[chatId];
+      return next;
+    });
+  };
+
+  // Total unread count
+  const totalUnread = Object.values(unreadCounts).reduce((s, n) => s + n, 0);
 
   return (
     <ChatContext.Provider
@@ -33,6 +70,14 @@ const ChatProvider = ({ children }) => {
         setChats,
         notification,
         setNotification,
+        loadingUser,
+
+        // unread API
+        unreadCounts,
+        incrementUnread,
+        clearUnread,
+        setUnreadForChat,
+        totalUnread,
       }}
     >
       {children}
@@ -40,8 +85,5 @@ const ChatProvider = ({ children }) => {
   );
 };
 
-export const ChatState = () => {
-  return useContext(ChatContext);
-};
-
+export const ChatState = () => useContext(ChatContext);
 export default ChatProvider;
